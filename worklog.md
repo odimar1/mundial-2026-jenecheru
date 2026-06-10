@@ -31,3 +31,35 @@ Stage Summary:
 - Collapsible group sections
 - Session-based auth with cookie tokens
 - Database: SQLite via Prisma
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix admin approval bug, add "Ver pronóstico de:" dropdown for all users, redesign match cards
+
+Work Log:
+- Analyzed reference image from user showing desired prediction UI (match cards with group, venue, date)
+- Created new /api/users/confirmed endpoint to list confirmed non-admin users for dropdown
+- Fixed admin approval bug - admin users API now works correctly (verified 5 users visible with proper statuses)
+- Added "Ver pronóstico de:" dropdown for ALL users (admin and non-admin) - can view any confirmed participant's predictions
+- Users can view other participants' predictions in read-only mode, and only edit their own
+- Completely redesigned match cards to show individual boxes with:
+  - Group name (e.g., "GRUPO A")
+  - Venue info with MapPin icon (e.g., "Estadio Azteca, CDMX")
+  - Date/time with Calendar icon
+  - Country flags and 3-letter country codes (e.g., MX, ZA)
+  - Score inputs/outputs in the center between team names
+  - Points badges when results are available
+- Match groups now display as grid (2 columns on sm+ screens) instead of stacked rows
+- Added sticky footer with "Mundial 2026 Jenecherú — UAGRM"
+- Verified all features work with Agent Browser - zero console errors
+- Confirmed admin approval section shows 5 users (3 pending, 2 confirmed)
+
+Stage Summary:
+- Admin approval bug fixed - users now appear in the approval table
+- "Ver pronóstico de:" dropdown available for all participants (view all, edit own only)
+- Match cards redesigned with individual boxes showing group, venue, date, flags, and codes
+- Grid layout for match cards (responsive 1-2 columns)
+- New /api/users/confirmed API endpoint
+- Footer sticks to bottom properly
+- All browser tests pass

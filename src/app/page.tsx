@@ -9,16 +9,17 @@ import {
   LogOut,
   Shield,
   Users,
-  Lock,
   RotateCcw,
   Save,
   CircleDot,
   Loader2,
-  AlertTriangle,
   Medal,
   ChevronDown,
   ChevronRight,
   Eye,
+  MapPin,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -99,6 +99,11 @@ interface AdminUser {
   _count: { predictions: number };
 }
 
+interface ConfirmedUser {
+  id: string;
+  name: string;
+}
+
 // Country flag emojis
 const countryFlags: Record<string, string> = {
   'México': '🇲🇽', 'Sudáfrica': '🇿🇦', 'Corea del Sur': '🇰🇷', 'Chequia': '🇨🇿',
@@ -115,50 +120,21 @@ const countryFlags: Record<string, string> = {
   'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croacia': '🇭🇷', 'Ghana': '🇬🇭', 'Panamá': '🇵🇦',
 };
 
-// Collapsible Group Component
-function MatchGroup({ 
-  group, 
-  matches, 
-  children, 
-  defaultOpen = false 
-}: { 
-  group: string; 
-  matches: Match[]; 
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const completedCount = matches.filter(m => m.isCompleted).length;
-
-  return (
-    <Card className="bg-[#141b2d] border-white/10 overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-teal-400" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-slate-400" />
-          )}
-          <span className="text-sm font-bold text-slate-300 uppercase tracking-wider">{group}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {completedCount > 0 && (
-            <Badge className="bg-emerald-600 text-xs">{completedCount}/{matches.length}</Badge>
-          )}
-          <span className="text-xs text-slate-500">{matches.length} partidos</span>
-        </div>
-      </button>
-      {isOpen && (
-        <CardContent className="pt-0 pb-4 space-y-2">
-          {children}
-        </CardContent>
-      )}
-    </Card>
-  );
-}
+// Country codes for display
+const countryCodes: Record<string, string> = {
+  'México': 'MX', 'Sudáfrica': 'ZA', 'Corea del Sur': 'KR', 'Chequia': 'CZ',
+  'Canadá': 'CA', 'Bosnia y Herzegovina': 'BA', 'Qatar': 'QA', 'Suiza': 'CH',
+  'Brasil': 'BR', 'Marruecos': 'MA', 'Haití': 'HT', 'Escocia': 'SC',
+  'Estados Unidos': 'US', 'Paraguay': 'PY', 'Australia': 'AU', 'Turquía': 'TR',
+  'Alemania': 'DE', 'Curazao': 'CW', 'Costa de Marfil': 'CI', 'Ecuador': 'EC',
+  'Países Bajos': 'NL', 'Japón': 'JP', 'Suecia': 'SE', 'Túnez': 'TN',
+  'Bélgica': 'BE', 'Egipto': 'EG', 'Irán': 'IR', 'Nueva Zelanda': 'NZ',
+  'España': 'ES', 'Cabo Verde': 'CV', 'Arabia Saudita': 'SA', 'Uruguay': 'UY',
+  'Francia': 'FR', 'Senegal': 'SN', 'Irak': 'IQ', 'Noruega': 'NO',
+  'Argentina': 'AR', 'Argelia': 'DZ', 'Austria': 'AT', 'Jordania': 'JO',
+  'Portugal': 'PT', 'RD Congo': 'CD', 'Uzbekistán': 'UZ', 'Colombia': 'CO',
+  'Inglaterra': 'EN', 'Croacia': 'HR', 'Ghana': 'GH', 'Panamá': 'PA',
+};
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -180,11 +156,15 @@ export default function Home() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [confirmedUsers, setConfirmedUsers] = useState<ConfirmedUser[]>([]);
   const [predictionsLocked, setPredictionsLocked] = useState(false);
 
-  // Admin state
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [userPredictions, setUserPredictions] = useState<Prediction[]>([]);
+  // Prediction viewing state
+  const [viewingUserId, setViewingUserId] = useState<string>('');
+  const [viewedPredictions, setViewedPredictions] = useState<Prediction[]>([]);
+  const [viewedUserName, setViewedUserName] = useState<string>('');
+
+  // Editing predictions state
   const [editingPredictions, setEditingPredictions] = useState<Record<string, { home: number; away: number }>>({});
   const [matchResults, setMatchResults] = useState<Record<string, { home: string; away: string }>>({});
   const [savingResult, setSavingResult] = useState<string | null>(null);
@@ -223,15 +203,9 @@ export default function Home() {
       } else {
         fetchMyPredictions();
       }
+      fetchConfirmedUsers();
     }
   }, [user]);
-
-  // Scroll to top on tab change
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const fetchMatches = async () => {
     try {
@@ -272,10 +246,26 @@ export default function Home() {
   const fetchAdminUsers = async () => {
     try {
       const res = await fetch('/api/admin/users');
+      if (!res.ok) {
+        console.error('Admin users fetch failed:', res.status);
+        return;
+      }
       const data = await res.json();
       setAdminUsers(data.users || []);
     } catch (error) {
       console.error('Error fetching admin users:', error);
+    }
+  };
+
+  const fetchConfirmedUsers = async () => {
+    try {
+      const res = await fetch('/api/users/confirmed');
+      if (res.ok) {
+        const data = await res.json();
+        setConfirmedUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching confirmed users:', error);
     }
   };
 
@@ -293,7 +283,7 @@ export default function Home() {
     try {
       const res = await fetch(`/api/predictions?userId=${userId}`);
       const data = await res.json();
-      setUserPredictions(data.predictions || []);
+      setViewedPredictions(data.predictions || []);
     } catch (error) {
       console.error('Error fetching user predictions:', error);
     }
@@ -358,6 +348,8 @@ export default function Home() {
       setPredictions([]);
       setLeaderboard([]);
       setAdminUsers([]);
+      setViewingUserId('');
+      setViewedPredictions([]);
       toast.success('Sesión cerrada');
     } catch {
       toast.error('Error al cerrar sesión');
@@ -407,6 +399,7 @@ export default function Home() {
         toast.success(isConfirmed ? 'Usuario confirmado' : 'Usuario desconfirmado');
         fetchAdminUsers();
         fetchLeaderboard();
+        fetchConfirmedUsers();
       }
     } catch {
       toast.error('Error al actualizar usuario');
@@ -479,14 +472,24 @@ export default function Home() {
         fetchLeaderboard();
         fetchAdminUsers();
         fetchSettings();
+        fetchConfirmedUsers();
       }
     } catch {
       toast.error('Error al resetear datos');
     }
   };
 
-  const handleSelectedUserChange = (userId: string) => {
-    setSelectedUserId(userId);
+  const handleViewingUserChange = (userId: string) => {
+    if (userId === user?.id) {
+      // Viewing own predictions - switch to edit mode
+      setViewingUserId('');
+      setViewedPredictions([]);
+      setViewedUserName('');
+      return;
+    }
+    setViewingUserId(userId);
+    const found = confirmedUsers.find(u => u.id === userId);
+    setViewedUserName(found?.name || '');
     fetchUserPredictions(userId);
   };
 
@@ -659,10 +662,408 @@ export default function Home() {
     matches: matches.filter((m) => m.group === group),
   })).filter((g) => g.matches.length > 0);
 
-  // Get user's prediction for a match
-  const getPredictionForMatch = (matchId: string) => {
-    return predictions.find((p) => p.matchId === matchId);
+  // Determine if user is viewing own predictions or another's
+  const isViewingOwn = !viewingUserId || viewingUserId === user.id;
+
+  // Get prediction for a match from viewed predictions
+  const getViewedPrediction = (matchId: string) => {
+    if (isViewingOwn) {
+      return predictions.find((p) => p.matchId === matchId);
+    }
+    return viewedPredictions.find((p) => p.matchId === matchId);
   };
+
+  // Get editing value for a match
+  const getEditingValue = (matchId: string) => {
+    return editingPredictions[matchId] || { home: 0, away: 0 };
+  };
+
+  // Match Card Component for predictions
+  const MatchCard = ({ match }: { match: Match }) => {
+    const pred = getViewedPrediction(match.id);
+    const editing = getEditingValue(match.id);
+    const canEdit = isViewingOwn && !predictionsLocked && !match.isCompleted;
+    const homeFlag = countryFlags[match.homeTeam] || '';
+    const awayFlag = countryFlags[match.awayTeam] || '';
+    const homeCode = countryCodes[match.homeTeam] || '';
+    const awayCode = countryCodes[match.awayTeam] || '';
+
+    return (
+      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden hover:border-white/10 transition-colors">
+        {/* Card Header - Group & Venue Info */}
+        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+              {match.group}
+            </span>
+            {match.isCompleted && (
+              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            {match.venue && (
+              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                <MapPin className="h-2.5 w-2.5" /> {match.venue}
+              </span>
+            )}
+          </div>
+          {match.date && (
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+              <Calendar className="h-2.5 w-2.5" /> {match.date}
+            </span>
+          )}
+        </div>
+
+        {/* Teams & Score */}
+        <div className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Home Team */}
+            <div className="flex-1 flex items-center gap-2 min-w-0">
+              <span className="text-lg">{homeFlag}</span>
+              <div className="min-w-0">
+                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+              </div>
+            </div>
+
+            {/* Score Section */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {canEdit ? (
+                <>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={editing.home}
+                    onChange={(e) =>
+                      setEditingPredictions((prev) => ({
+                        ...prev,
+                        [match.id]: { ...prev[match.id], home: parseInt(e.target.value) || 0 },
+                      }))
+                    }
+                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+                  />
+                  <span className="text-slate-500 text-xs">-</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={editing.away}
+                    onChange={(e) =>
+                      setEditingPredictions((prev) => ({
+                        ...prev,
+                        [match.id]: { ...prev[match.id], away: parseInt(e.target.value) || 0 },
+                      }))
+                    }
+                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+                  />
+                </>
+              ) : match.isCompleted ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {match.homeScore}
+                  </span>
+                  <span className="text-slate-500 text-xs">-</span>
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {match.awayScore}
+                  </span>
+                </div>
+              ) : pred ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {pred.homeScore}
+                  </span>
+                  <span className="text-slate-500 text-xs">-</span>
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {pred.awayScore}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+                  <span className="text-slate-500 text-xs">-</span>
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+                </div>
+              )}
+            </div>
+
+            {/* Away Team */}
+            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+              <div className="min-w-0 text-right">
+                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+              </div>
+              <span className="text-lg">{awayFlag}</span>
+            </div>
+          </div>
+
+          {/* Points badge */}
+          {pred && pred.points !== null && pred.points !== undefined && (
+            <div className="mt-1.5 text-center">
+              <Badge className={`text-[10px] ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600/70'}`}>
+                +{pred.points} {pred.points === 3 ? 'pts exacto' : pred.points === 1 ? 'pt parcial' : 'pts'}
+              </Badge>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Result Match Card for admin
+  const ResultMatchCard = ({ match }: { match: Match }) => {
+    const homeFlag = countryFlags[match.homeTeam] || '';
+    const awayFlag = countryFlags[match.awayTeam] || '';
+    const homeCode = countryCodes[match.homeTeam] || '';
+    const awayCode = countryCodes[match.awayTeam] || '';
+    const currentResult = matchResults[match.id] || {
+      home: match.homeScore?.toString() || '',
+      away: match.awayScore?.toString() || '',
+    };
+
+    return (
+      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+        {/* Card Header */}
+        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+              {match.group}
+            </span>
+            {match.isCompleted && (
+              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+            )}
+          </div>
+          {match.venue && (
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+            </span>
+          )}
+          {match.date && (
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+              <Calendar className="h-2.5 w-2.5" /> {match.date}
+            </span>
+          )}
+        </div>
+
+        {/* Teams & Score Input */}
+        <div className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Home Team */}
+            <div className="flex-1 flex items-center gap-2 min-w-0">
+              <span className="text-lg">{homeFlag}</span>
+              <div className="min-w-0">
+                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+              </div>
+            </div>
+
+            {/* Score Input */}
+            {user.isAdmin && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Input
+                  type="number"
+                  min="0"
+                  max="99"
+                  placeholder="-"
+                  value={currentResult.home}
+                  onChange={(e) =>
+                    setMatchResults((prev) => ({
+                      ...prev,
+                      [match.id]: { ...prev[match.id], home: e.target.value },
+                    }))
+                  }
+                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+                />
+                <span className="text-slate-500 text-xs">-</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="99"
+                  placeholder="-"
+                  value={currentResult.away}
+                  onChange={(e) =>
+                    setMatchResults((prev) => ({
+                      ...prev,
+                      [match.id]: { ...prev[match.id], away: e.target.value },
+                    }))
+                  }
+                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+                />
+              </div>
+            )}
+
+            {/* Away Team */}
+            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+              <div className="min-w-0 text-right">
+                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+              </div>
+              <span className="text-lg">{awayFlag}</span>
+            </div>
+          </div>
+
+          {/* Save result button (admin only) */}
+          {user.isAdmin && !match.isCompleted && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                onClick={() => handleSaveResult(match.id)}
+                disabled={savingResult === match.id}
+                className="w-full h-7 bg-teal-600 hover:bg-teal-500 text-white text-xs"
+              >
+                {savingResult === match.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Save className="h-3 w-3 mr-1" />
+                )}
+                Guardar
+              </Button>
+            </div>
+          )}
+
+          {/* Completed result display */}
+          {match.isCompleted && (
+            <div className="mt-1.5 text-center">
+              <span className="text-emerald-400 text-xs font-medium">
+                Resultado: {match.homeScore} - {match.awayScore}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // User Results View Card (non-admin)
+  const UserResultCard = ({ match }: { match: Match }) => {
+    const pred = predictions.find((p) => p.matchId === match.id);
+    const homeFlag = countryFlags[match.homeTeam] || '';
+    const awayFlag = countryFlags[match.awayTeam] || '';
+    const homeCode = countryCodes[match.homeTeam] || '';
+    const awayCode = countryCodes[match.awayTeam] || '';
+
+    return (
+      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+              {match.group}
+            </span>
+            {match.isCompleted && (
+              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+            )}
+          </div>
+          {match.venue && (
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+            </span>
+          )}
+          {match.date && (
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+              <Calendar className="h-2.5 w-2.5" /> {match.date}
+            </span>
+          )}
+        </div>
+        <div className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 flex items-center gap-2 min-w-0">
+              <span className="text-lg">{homeFlag}</span>
+              <div className="min-w-0">
+                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {match.isCompleted ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {match.homeScore}
+                  </span>
+                  <span className="text-slate-500 text-xs">-</span>
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+                    {match.awayScore}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-slate-500 text-xs">Pendiente</span>
+              )}
+
+              {pred && (
+                <div className="flex flex-col items-center">
+                  <span className="text-[9px] text-slate-500">Mi pronóstico</span>
+                  <span className="text-white text-xs font-bold">
+                    {pred.homeScore}-{pred.awayScore}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+              <div className="min-w-0 text-right">
+                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+              </div>
+              <span className="text-lg">{awayFlag}</span>
+            </div>
+          </div>
+
+          {pred && pred.points !== null && pred.points !== undefined && (
+            <div className="mt-1.5 text-center">
+              <Badge className={`text-[10px] ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600/70'}`}>
+                +{pred.points} pts
+              </Badge>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Collapsible Group Component
+  function MatchGroupSection({
+    group,
+    groupMatches,
+    children,
+    defaultOpen = false,
+  }: {
+    group: string;
+    groupMatches: Match[];
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+  }) {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    const completedCount = groupMatches.filter(m => m.isCompleted).length;
+
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center justify-between py-2 px-1 hover:bg-white/5 rounded-lg transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-teal-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            )}
+            <span className="text-sm font-bold text-slate-300 uppercase tracking-wider">{group}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {completedCount > 0 && (
+              <Badge className="bg-emerald-600 text-xs">{completedCount}/{groupMatches.length}</Badge>
+            )}
+            <span className="text-xs text-slate-500">{groupMatches.length} partidos</span>
+          </div>
+        </button>
+        {isOpen && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Main app
   return (
@@ -702,7 +1103,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main ref={mainRef} className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 bg-[#1e293b] mb-6">
             <TabsTrigger
               value="scores"
@@ -932,218 +1333,90 @@ export default function Home() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {/* View user predictions */}
-                  {adminUsers.filter((u) => u.isConfirmed).length > 0 && (
-                    <Card className="bg-[#141b2d] border-white/10">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Eye className="h-5 w-5 text-teal-400" /> Ver pronósticos de:
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <Select
-                          value={selectedUserId}
-                          onValueChange={handleSelectedUserChange}
-                        >
-                          <SelectTrigger className="bg-[#1e293b] border-white/10 text-white">
-                            <SelectValue placeholder="Seleccionar participante" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#1e293b] border-white/10">
-                            {adminUsers
-                              .filter((u) => u.isConfirmed)
-                              .map((u) => (
-                                <SelectItem key={u.id} value={u.id} className="text-white focus:bg-teal-600 focus:text-white">
-                                  {u.name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-
-                        {selectedUserId && userPredictions.length > 0 && (
-                          <ScrollArea className="max-h-96">
-                            <div className="space-y-2">
-                              {userPredictions.map((pred) => (
-                                <div
-                                  key={pred.id}
-                                  className="flex items-center justify-between p-3 bg-[#1e293b] rounded-lg"
-                                >
-                                  <span className="text-sm text-slate-300">
-                                    {countryFlags[pred.match?.homeTeam || ''] || ''} {pred.match?.homeTeam} vs {pred.match?.awayTeam} {countryFlags[pred.match?.awayTeam || ''] || ''}
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white font-bold">
-                                      {pred.homeScore} - {pred.awayScore}
-                                    </span>
-                                    {pred.points !== null && pred.points !== undefined && (
-                                      <Badge className={`text-xs ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600'}`}>
-                                        +{pred.points}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        )}
-
-                        {selectedUserId && userPredictions.length === 0 && (
-                          <p className="text-slate-500 text-sm text-center py-4">
-                            Este participante aún no ha realizado predicciones
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
                 </>
               )}
 
-              {/* User Predictions Form (non-admin) */}
-              {!user.isAdmin && (
-                <div className="space-y-4">
-                  {predictionsLocked && (
-                    <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
-                      <Lock className="h-5 w-5 text-red-400" />
-                      <p className="text-red-300 text-sm">
-                        Las predicciones están bloqueadas por el administrador. No puedes editar tus pronósticos.
-                      </p>
+              {/* View Predictions Dropdown - Available for ALL users */}
+              <Card className="bg-[#141b2d] border-white/10">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Eye className="h-5 w-5 text-teal-400" />
+                      <span className="text-sm font-medium text-white">Ver pronóstico de:</span>
                     </div>
-                  )}
-
-                  {!predictionsLocked && (
-                    <div className="bg-teal-900/20 border border-teal-500/30 rounded-lg p-4 flex items-center gap-3">
-                      <CircleDot className="h-5 w-5 text-teal-400" />
-                      <p className="text-teal-300 text-sm">
-                        Ingresa tus predicciones y presiona &quot;Guardar Mis Predicciones&quot; al final.
-                      </p>
+                    <div className="flex-1 w-full sm:w-auto flex gap-2">
+                      <Select
+                        value={viewingUserId}
+                        onValueChange={handleViewingUserChange}
+                      >
+                        <SelectTrigger className="bg-[#1e293b] border-white/10 text-white flex-1">
+                          <SelectValue placeholder={user.name + ' (Yo)'} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1e293b] border-white/10">
+                          <SelectItem value={user.id} className="text-white focus:bg-teal-600 focus:text-white">
+                            {user.name} (Yo)
+                          </SelectItem>
+                          {confirmedUsers
+                            .filter((u) => u.id !== user.id)
+                            .map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-white focus:bg-teal-600 focus:text-white">
+                                {u.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </div>
+                  {viewingUserId && viewingUserId !== user.id && (
+                    <p className="text-xs text-amber-400 mt-2">
+                      Estás viendo las predicciones de <strong>{viewedUserName}</strong> (solo lectura)
+                    </p>
                   )}
+                  {predictionsLocked && isViewingOwn && !user.isAdmin && (
+                    <p className="text-xs text-red-400 mt-2">
+                      🔒 Las predicciones están bloqueadas por el administrador
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
-                  {matchesByGroup.map(({ group, matches: groupMatches }) => (
-                    <MatchGroup
-                      key={group}
-                      group={group}
-                      matches={groupMatches}
-                      defaultOpen={group === 'Grupo A'}
-                    >
-                      {groupMatches.map((match) => {
-                        const existingPred = getPredictionForMatch(match.id);
-                        const editing = editingPredictions[match.id] || {
-                          home: existingPred?.homeScore ?? 0,
-                          away: existingPred?.awayScore ?? 0,
-                        };
-
-                        return (
-                          <div
-                            key={match.id}
-                            className={`flex items-center gap-2 p-3 rounded-lg ${
-                              match.isCompleted ? 'bg-emerald-900/20 border border-emerald-500/20' : 'bg-[#1e293b]'
-                            }`}
-                          >
-                            <div className="flex-1 text-right">
-                              <span className="text-sm text-white">
-                                {countryFlags[match.homeTeam] || ''} {match.homeTeam}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="20"
-                                value={editing.home}
-                                onChange={(e) =>
-                                  setEditingPredictions((prev) => ({
-                                    ...prev,
-                                    [match.id]: { ...editing, home: parseInt(e.target.value) || 0 },
-                                  }))
-                                }
-                                disabled={predictionsLocked || match.isCompleted}
-                                className="w-12 h-9 text-center bg-[#0f172a] border-white/10 text-white p-0 text-sm disabled:opacity-50"
-                              />
-                              <span className="text-slate-500 text-xs px-1">vs</span>
-                              <Input
-                                type="number"
-                                min="0"
-                                max="20"
-                                value={editing.away}
-                                onChange={(e) =>
-                                  setEditingPredictions((prev) => ({
-                                    ...prev,
-                                    [match.id]: { ...editing, away: parseInt(e.target.value) || 0 },
-                                  }))
-                                }
-                                disabled={predictionsLocked || match.isCompleted}
-                                className="w-12 h-9 text-center bg-[#0f172a] border-white/10 text-white p-0 text-sm disabled:opacity-50"
-                              />
-                            </div>
-                            <div className="flex-1 text-left">
-                              <span className="text-sm text-white">
-                                {match.awayTeam} {countryFlags[match.awayTeam] || ''}
-                              </span>
-                            </div>
-                            {match.isCompleted && (
-                              <Badge className="bg-emerald-600 text-xs shrink-0">OFICIAL {match.homeScore}-{match.awayScore}</Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </MatchGroup>
-                  ))}
-
+              {/* Save Predictions Button (only when viewing own and not locked) */}
+              {isViewingOwn && !predictionsLocked && !user.isAdmin && (
+                <div className="flex justify-center">
                   <Button
                     onClick={handleSavePredictions}
-                    disabled={predictionsLocked || savingPredictions}
-                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold py-3 text-lg"
-                    size="lg"
+                    disabled={savingPredictions}
+                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold px-8 h-11"
                   >
-                    {savingPredictions ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
+                    {savingPredictions ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
                     Guardar Mis Predicciones
                   </Button>
                 </div>
               )}
 
-              {/* Admin match overview */}
-              {user.isAdmin && (
-                <div className="space-y-2">
-                  {matchesByGroup.map(({ group, matches: groupMatches }) => (
-                    <MatchGroup
-                      key={group}
-                      group={group}
-                      matches={groupMatches}
-                      defaultOpen={false}
-                    >
-                      {groupMatches.map((match) => (
-                        <div
-                          key={match.id}
-                          className={`flex items-center gap-2 p-3 rounded-lg ${
-                            match.isCompleted
-                              ? 'bg-emerald-900/20 border border-emerald-500/20'
-                              : 'bg-[#1e293b]'
-                          }`}
-                        >
-                          <div className="flex-1 text-right">
-                            <span className="text-sm text-white">
-                              {countryFlags[match.homeTeam] || ''} {match.homeTeam}
-                            </span>
-                          </div>
-                          <span className="text-white font-bold text-sm min-w-[40px] text-center">
-                            {match.isCompleted ? `${match.homeScore} - ${match.awayScore}` : 'vs'}
-                          </span>
-                          <div className="flex-1 text-left">
-                            <span className="text-sm text-white">
-                              {match.awayTeam} {countryFlags[match.awayTeam] || ''}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </MatchGroup>
-                  ))}
-                </div>
-              )}
+              {/* Match Groups */}
+              <div className="space-y-4">
+                {matchesByGroup.map(({ group, matches: groupMatches }) => (
+                  <MatchGroupSection
+                    key={group}
+                    group={group}
+                    groupMatches={groupMatches}
+                    defaultOpen={groupMatches[0]?.group === 'Grupo A'}
+                  >
+                    {groupMatches.map((match) => (
+                      <MatchCard key={match.id} match={match} />
+                    ))}
+                  </MatchGroupSection>
+                ))}
+              </div>
             </div>
           </TabsContent>
 
-          {/* RESULTADOS OFICIALES TAB */}
+          {/* RESULTADOS TAB */}
           <TabsContent value="results">
             <div className="space-y-6">
               <div className="text-center">
@@ -1155,217 +1428,140 @@ export default function Home() {
                 </p>
               </div>
 
-              {user.isAdmin ? (
-                <div className="space-y-4">
-                  {matchesByGroup.map(({ group, matches: groupMatches }) => (
-                    <MatchGroup
-                      key={group}
-                      group={group}
-                      matches={groupMatches}
-                      defaultOpen={group === 'Grupo A'}
-                    >
-                      {groupMatches.map((match) => {
-                        const result = matchResults[match.id] || {
-                          home: match.homeScore?.toString() ?? '',
-                          away: match.awayScore?.toString() ?? '',
-                        };
-                        const hasBothScores = result.home !== '' && result.away !== '';
-                        const isSaving = savingResult === match.id;
+              {/* Admin Reset Controls */}
+              {user.isAdmin && (
+                <Card className="bg-[#141b2d] border-red-500/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2 text-red-400">
+                      <RotateCcw className="h-5 w-5" /> Reiniciar Datos
+                    </CardTitle>
+                    <CardDescription className="text-slate-400 text-sm">
+                      Elimina datos del sistema. Esta acción no se puede deshacer.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Predicciones
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">¿Reiniciar predicciones?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-slate-400">
+                              Se eliminarán todas las predicciones de todos los participantes y los puntajes recalculados.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleReset('predictions')} className="bg-red-600 hover:bg-red-500">
+                              Reiniciar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
-                        return (
-                          <div
-                            key={match.id}
-                            className={`flex items-center gap-2 p-3 rounded-lg ${
-                              match.isCompleted
-                                ? 'bg-emerald-900/20 border border-emerald-500/20'
-                                : 'bg-[#1e293b]'
-                            }`}
-                          >
-                            <div className="flex-1 text-right">
-                              <span className="text-sm text-white">
-                                {countryFlags[match.homeTeam] || ''} {match.homeTeam}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="20"
-                                placeholder="-"
-                                value={result.home}
-                                onChange={(e) =>
-                                  setMatchResults((prev) => ({
-                                    ...prev,
-                                    [match.id]: { ...result, home: e.target.value },
-                                  }))
-                                }
-                                disabled={match.isCompleted}
-                                className="w-14 h-9 text-center bg-[#0f172a] border-white/10 text-white p-0 text-sm disabled:opacity-50"
-                              />
-                              <span className="text-slate-500 text-xs px-1">vs</span>
-                              <Input
-                                type="number"
-                                min="0"
-                                max="20"
-                                placeholder="-"
-                                value={result.away}
-                                onChange={(e) =>
-                                  setMatchResults((prev) => ({
-                                    ...prev,
-                                    [match.id]: { ...result, away: e.target.value },
-                                  }))
-                                }
-                                disabled={match.isCompleted}
-                                className="w-14 h-9 text-center bg-[#0f172a] border-white/10 text-white p-0 text-sm disabled:opacity-50"
-                              />
-                            </div>
-                            <div className="flex-1 text-left">
-                              <span className="text-sm text-white">
-                                {match.awayTeam} {countryFlags[match.awayTeam] || ''}
-                              </span>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleSaveResult(match.id)}
-                              disabled={match.isCompleted || !hasBothScores || isSaving}
-                              className={`shrink-0 ${
-                                match.isCompleted
-                                  ? 'bg-emerald-600 hover:bg-emerald-500'
-                                  : 'bg-teal-600 hover:bg-teal-500'
-                              } text-white text-xs`}
-                            >
-                              {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : match.isCompleted ? '✓' : 'Guardar'}
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </MatchGroup>
-                  ))}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Resultados
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">¿Reiniciar resultados?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-slate-400">
+                              Se eliminarán todos los resultados oficiales y se recalcularán los puntajes.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleReset('matches')} className="bg-red-600 hover:bg-red-500">
+                              Reiniciar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
-                  {/* Reset buttons */}
-                  <Separator className="bg-white/10" />
-                  <div className="flex flex-wrap gap-3 justify-center pb-4">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="gap-2">
-                          <RotateCcw className="h-4 w-4" /> Reiniciar Predicciones y Resultados
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-[#141b2d] border-white/10">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-white flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-red-400" /> ¿Estás seguro?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription className="text-slate-400">
-                            Esta acción eliminará todas las predicciones y resultados oficiales. Los usuarios tendrán que volver a hacer sus predicciones.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-slate-700 text-white border-white/10">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleReset('predictions')}
-                            className="bg-red-600 hover:bg-red-500 text-white"
-                          >
-                            Reiniciar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Usuarios
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">¿Reiniciar usuarios?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-slate-400">
+                              Se eliminarán todos los usuarios y sus predicciones. El administrador no se eliminará.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleReset('users')} className="bg-red-600 hover:bg-red-500">
+                              Reiniciar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="gap-2">
-                          <RotateCcw className="h-4 w-4" /> Reiniciar Todo
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-[#141b2d] border-white/10">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-white flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-red-400" /> ¿Reiniciar todo?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription className="text-slate-400">
-                            Esta acción eliminará todos los usuarios, predicciones y resultados. Solo quedará la cuenta de administrador.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-slate-700 text-white border-white/10">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleReset('all')}
-                            className="bg-red-600 hover:bg-red-500 text-white"
-                          >
-                            Reiniciar Todo
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ) : (
-                /* Non-admin view of official results */
-                <div className="space-y-2">
-                  {matchesByGroup.map(({ group, matches: groupMatches }) => (
-                    <MatchGroup
-                      key={group}
-                      group={group}
-                      matches={groupMatches}
-                      defaultOpen={group === 'Grupo A'}
-                    >
-                      {groupMatches.map((match) => {
-                        const myPred = getPredictionForMatch(match.id);
-
-                        return (
-                          <div
-                            key={match.id}
-                            className={`flex items-center gap-2 p-3 rounded-lg ${
-                              match.isCompleted
-                                ? 'bg-emerald-900/20 border border-emerald-500/20'
-                                : 'bg-[#1e293b]'
-                            }`}
-                          >
-                            <div className="flex-1 text-right">
-                              <span className="text-sm text-white">
-                                {countryFlags[match.homeTeam] || ''} {match.homeTeam}
-                              </span>
-                            </div>
-                            <div className="text-center min-w-[80px]">
-                              {match.isCompleted ? (
-                                <div className="space-y-0.5">
-                                  <span className="text-lg font-bold text-emerald-400 block">
-                                    {match.homeScore} - {match.awayScore}
-                                  </span>
-                                  {myPred && myPred.points !== null && myPred.points !== undefined && (
-                                    <Badge className={`text-[10px] px-1.5 py-0 ${
-                                      myPred.points === 3 ? 'bg-teal-600' : myPred.points === 1 ? 'bg-amber-600' : 'bg-red-600'
-                                    }`}>
-                                      +{myPred.points} pts
-                                    </Badge>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-slate-500 text-sm">Por jugar</span>
-                              )}
-                            </div>
-                            <div className="flex-1 text-left">
-                              <span className="text-sm text-white">
-                                {match.awayTeam} {countryFlags[match.awayTeam] || ''}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </MatchGroup>
-                  ))}
-                </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Todo
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">¿Reiniciar todo?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-slate-400">
+                              Se eliminarán TODOS los datos: predicciones, resultados, usuarios y configuraciones.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleReset('all')} className="bg-red-600 hover:bg-red-500">
+                              Reiniciar Todo
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
+
+              {/* Match Groups - Results */}
+              <div className="space-y-4">
+                {matchesByGroup.map(({ group, matches: groupMatches }) => (
+                  <MatchGroupSection
+                    key={group}
+                    group={group}
+                    groupMatches={groupMatches}
+                    defaultOpen={groupMatches[0]?.group === 'Grupo A'}
+                  >
+                    {user.isAdmin
+                      ? groupMatches.map((match) => (
+                          <ResultMatchCard key={match.id} match={match} />
+                        ))
+                      : groupMatches.map((match) => (
+                          <UserResultCard key={match.id} match={match} />
+                        ))
+                    }
+                  </MatchGroupSection>
+                ))}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto bg-[#0f172a]/95 border-t border-white/10 py-4">
+      <footer className="mt-auto bg-[#0f172a]/80 border-t border-white/5 py-4">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 text-xs">
             Mundial 2026 Jenecherú — UAGRM
           </p>
         </div>
