@@ -140,7 +140,7 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [activeTab, setActiveTab] = useState('scores');
+  const [activeTab, setActiveTab] = useState('predictions');
   const mainRef = useRef<HTMLDivElement>(null);
 
   // Auth form state
@@ -198,12 +198,16 @@ export default function Home() {
       fetchMatches();
       fetchLeaderboard();
       if (user.isAdmin) {
-        fetchAdminUsers();
-        fetchSettings();
+        // Add small delay to ensure cookie is fully set after login
+        setTimeout(() => {
+          fetchAdminUsers();
+          fetchSettings();
+          fetchConfirmedUsers();
+        }, 300);
       } else {
         fetchMyPredictions();
+        fetchConfirmedUsers();
       }
-      fetchConfirmedUsers();
     }
   }, [user]);
 
@@ -243,10 +247,15 @@ export default function Home() {
     }
   };
 
-  const fetchAdminUsers = async () => {
+  const fetchAdminUsers = async (retries = 2) => {
     try {
       const res = await fetch('/api/admin/users');
       if (!res.ok) {
+        if (res.status === 403 && retries > 0) {
+          // Race condition: cookie not yet available after login, retry with delay
+          await new Promise(r => setTimeout(r, 500));
+          return fetchAdminUsers(retries - 1);
+        }
         console.error('Admin users fetch failed:', res.status);
         return;
       }
@@ -257,13 +266,18 @@ export default function Home() {
     }
   };
 
-  const fetchConfirmedUsers = async () => {
+  const fetchConfirmedUsers = async (retries = 2) => {
     try {
       const res = await fetch('/api/users/confirmed');
-      if (res.ok) {
-        const data = await res.json();
-        setConfirmedUsers(data.users || []);
+      if (!res.ok) {
+        if ((res.status === 401 || res.status === 403) && retries > 0) {
+          await new Promise(r => setTimeout(r, 500));
+          return fetchConfirmedUsers(retries - 1);
+        }
+        return;
       }
+      const data = await res.json();
+      setConfirmedUsers(data.users || []);
     } catch (error) {
       console.error('Error fetching confirmed users:', error);
     }
@@ -1103,7 +1117,19 @@ export default function Home() {
 
       {/* Main Content */}
       <main ref={mainRef} className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(tab) => {
+          setActiveTab(tab);
+          // Refetch admin data when switching to predictions tab
+          if (tab === 'predictions' && user?.isAdmin) {
+            fetchAdminUsers();
+            fetchSettings();
+            fetchConfirmedUsers();
+          }
+          // Refetch leaderboard when switching to scores tab
+          if (tab === 'scores') {
+            fetchLeaderboard();
+          }
+        }} className="w-full">
           <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 bg-[#1e293b] mb-6">
             <TabsTrigger
               value="scores"
@@ -1284,13 +1310,33 @@ export default function Home() {
                   {/* User Approval */}
                   <Card className="bg-[#141b2d] border-white/10">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Users className="h-5 w-5 text-purple-400" /> Aprobación de Participantes
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Users className="h-5 w-5 text-purple-400" /> Aprobación de Participantes
+                        </CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { fetchAdminUsers(); fetchConfirmedUsers(); }}
+                          className="h-7 text-xs text-slate-400 hover:text-white"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" /> Actualizar
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       {adminUsers.length === 0 ? (
-                        <p className="text-slate-500 text-sm text-center py-4">No hay usuarios registrados</p>
+                        <div className="text-center py-4 space-y-2">
+                          <p className="text-slate-500 text-sm">No hay usuarios registrados aún</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchAdminUsers()}
+                            className="h-7 text-xs border-white/20 text-slate-300 hover:text-white"
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" /> Reintentar
+                          </Button>
+                        </div>
                       ) : (
                         <div className="overflow-x-auto">
                           <table className="w-full">
@@ -1303,7 +1349,11 @@ export default function Home() {
                               </tr>
                             </thead>
                             <tbody>
-                              {adminUsers.map((u) => (
+                              {[...adminUsers].sort((a, b) => {
+                                // Show pending users first
+                                if (a.isConfirmed !== b.isConfirmed) return a.isConfirmed ? 1 : -1;
+                                return 0;
+                              }).map((u) => (
                                 <tr key={u.id} className="border-b border-white/5">
                                   <td className="p-2 text-white text-sm">{u.name}</td>
                                   <td className="p-2 text-slate-400 text-sm hidden sm:table-cell">{u.email}</td>
