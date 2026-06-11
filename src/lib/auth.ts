@@ -9,11 +9,32 @@ export interface SessionUser {
   isConfirmed: boolean;
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * Get the current session user from either:
+ * 1. Cookie (session_token)
+ * 2. Authorization header (Bearer token)
+ * 
+ * The dual approach ensures auth works even when cookies aren't sent
+ * (e.g., due to reverse proxy or iframe environments).
+ */
+export async function getSessionUser(request?: Request): Promise<SessionUser | null> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    
+    let token: string | undefined;
+
+    // Try Authorization header first (more reliable in proxy/iframe scenarios)
+    if (request) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    // Fall back to cookie
+    if (!token) {
+      const cookieStore = await cookies();
+      token = cookieStore.get('session_token')?.value;
+    }
+
     if (!token) return null;
 
     const session = await db.session.findUnique({

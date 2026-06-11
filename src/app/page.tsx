@@ -138,6 +138,7 @@ const countryCodes: Record<string, string> = {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [activeTab, setActiveTab] = useState('predictions');
@@ -173,6 +174,17 @@ export default function Home() {
   // Group matches
   const groupOrder = ['Grupo A', 'Grupo B', 'Grupo C', 'Grupo D', 'Grupo E', 'Grupo F', 'Grupo G', 'Grupo H', 'Grupo I', 'Grupo J', 'Grupo K', 'Grupo L'];
 
+  // Authenticated fetch helper - sends token via Authorization header as fallback
+  const authFetch = async (url: string, options?: RequestInit) => {
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string> || {}),
+    };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   // Check session on mount
   useEffect(() => {
     checkSession();
@@ -180,10 +192,27 @@ export default function Home() {
 
   const checkSession = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      // Try to restore token from localStorage
+      const storedToken = localStorage.getItem('session_token');
+      if (storedToken) {
+        setSessionToken(storedToken);
+      }
+      const headers: Record<string, string> = {};
+      if (storedToken) {
+        headers['Authorization'] = `Bearer ${storedToken}`;
+      }
+      const res = await fetch('/api/auth/me', { headers });
       const data = await res.json();
       if (data.user) {
         setUser(data.user);
+        if (data.token) {
+          setSessionToken(data.token);
+          localStorage.setItem('session_token', data.token);
+        }
+      } else if (storedToken) {
+        // Token invalid, clear it
+        localStorage.removeItem('session_token');
+        setSessionToken('');
       }
     } catch {
       // Not logged in
@@ -198,18 +227,15 @@ export default function Home() {
       fetchMatches();
       fetchLeaderboard();
       if (user.isAdmin) {
-        // Add small delay to ensure cookie is fully set after login
-        setTimeout(() => {
-          fetchAdminUsers();
-          fetchSettings();
-          fetchConfirmedUsers();
-        }, 300);
+        fetchAdminUsers();
+        fetchSettings();
+        fetchConfirmedUsers();
       } else {
         fetchMyPredictions();
         fetchConfirmedUsers();
       }
     }
-  }, [user]);
+  }, [user, sessionToken]);
 
   const fetchMatches = async () => {
     try {
@@ -224,7 +250,7 @@ export default function Home() {
   const fetchMyPredictions = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/predictions?userId=${user.id}`);
+      const res = await authFetch(`/api/predictions?userId=${user.id}`);
       const data = await res.json();
       setPredictions(data.predictions || []);
       const editing: Record<string, { home: number; away: number }> = {};
@@ -247,15 +273,10 @@ export default function Home() {
     }
   };
 
-  const fetchAdminUsers = async (retries = 2) => {
+  const fetchAdminUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await authFetch('/api/admin/users');
       if (!res.ok) {
-        if (res.status === 403 && retries > 0) {
-          // Race condition: cookie not yet available after login, retry with delay
-          await new Promise(r => setTimeout(r, 500));
-          return fetchAdminUsers(retries - 1);
-        }
         console.error('Admin users fetch failed:', res.status);
         return;
       }
@@ -266,14 +287,10 @@ export default function Home() {
     }
   };
 
-  const fetchConfirmedUsers = async (retries = 2) => {
+  const fetchConfirmedUsers = async () => {
     try {
-      const res = await fetch('/api/users/confirmed');
+      const res = await authFetch('/api/users/confirmed');
       if (!res.ok) {
-        if ((res.status === 401 || res.status === 403) && retries > 0) {
-          await new Promise(r => setTimeout(r, 500));
-          return fetchConfirmedUsers(retries - 1);
-        }
         return;
       }
       const data = await res.json();
@@ -285,7 +302,7 @@ export default function Home() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings');
+      const res = await authFetch('/api/admin/settings');
       const data = await res.json();
       setPredictionsLocked(data.settings?.predictionsLocked === 'true');
     } catch (error) {
@@ -295,7 +312,7 @@ export default function Home() {
 
   const fetchUserPredictions = async (userId: string) => {
     try {
-      const res = await fetch(`/api/predictions?userId=${userId}`);
+      const res = await authFetch(`/api/predictions?userId=${userId}`);
       const data = await res.json();
       setViewedPredictions(data.predictions || []);
     } catch (error) {
@@ -316,6 +333,10 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setUser(data.user);
+        if (data.token) {
+          setSessionToken(data.token);
+          localStorage.setItem('session_token', data.token);
+        }
         setLoginName('');
         setLoginPassword('');
         toast.success(`¡Bienvenido, ${data.user.name}!`);
@@ -341,6 +362,10 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setUser(data.user);
+        if (data.token) {
+          setSessionToken(data.token);
+          localStorage.setItem('session_token', data.token);
+        }
         setRegName('');
         setRegEmail('');
         setRegPassword('');
@@ -357,8 +382,10 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await authFetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setSessionToken('');
+      localStorage.removeItem('session_token');
       setPredictions([]);
       setLeaderboard([]);
       setAdminUsers([]);
@@ -374,13 +401,15 @@ export default function Home() {
   const handleSavePredictions = async () => {
     setSavingPredictions(true);
     try {
-      const preds = Object.entries(editingPredictions).map(([matchId, scores]) => ({
-        matchId,
-        homeScore: scores.home,
-        awayScore: scores.away,
-      }));
+      const preds = Object.entries(editingPredictions)
+        .filter(([, scores]) => scores.home !== undefined && scores.away !== undefined)
+        .map(([matchId, scores]) => ({
+          matchId,
+          homeScore: scores.home ?? 0,
+          awayScore: scores.away ?? 0,
+        }));
 
-      const res = await fetch('/api/predictions', {
+      const res = await authFetch('/api/predictions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ predictions: preds }),
@@ -404,7 +433,7 @@ export default function Home() {
   // Admin handlers
   const handleConfirmUser = async (userId: string, isConfirmed: boolean) => {
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, isConfirmed }),
@@ -422,7 +451,7 @@ export default function Home() {
 
   const handleToggleLock = async () => {
     try {
-      const res = await fetch('/api/admin/settings', {
+      const res = await authFetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'predictionsLocked', value: (!predictionsLocked).toString() }),
@@ -444,7 +473,7 @@ export default function Home() {
     }
     setSavingResult(matchId);
     try {
-      const res = await fetch('/api/matches', {
+      const res = await authFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -475,7 +504,7 @@ export default function Home() {
 
   const handleReset = async (type: string) => {
     try {
-      const res = await fetch('/api/admin/reset', {
+      const res = await authFetch('/api/admin/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type }),
@@ -696,7 +725,7 @@ export default function Home() {
   const MatchCard = ({ match }: { match: Match }) => {
     const pred = getViewedPrediction(match.id);
     const editing = getEditingValue(match.id);
-    const canEdit = isViewingOwn && !predictionsLocked && !match.isCompleted;
+    const canEdit = isViewingOwn && !predictionsLocked && !match.isCompleted && !user?.isAdmin;
     const homeFlag = countryFlags[match.homeTeam] || '';
     const awayFlag = countryFlags[match.awayTeam] || '';
     const homeCode = countryCodes[match.homeTeam] || '';
@@ -750,10 +779,13 @@ export default function Home() {
                     max="99"
                     value={editing.home}
                     onChange={(e) =>
-                      setEditingPredictions((prev) => ({
-                        ...prev,
-                        [match.id]: { ...prev[match.id], home: parseInt(e.target.value) || 0 },
-                      }))
+                      setEditingPredictions((prev) => {
+                        const existing = prev[match.id] || { home: 0, away: 0 };
+                        return {
+                          ...prev,
+                          [match.id]: { ...existing, home: parseInt(e.target.value) || 0 },
+                        };
+                      })
                     }
                     className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
                   />
@@ -764,10 +796,13 @@ export default function Home() {
                     max="99"
                     value={editing.away}
                     onChange={(e) =>
-                      setEditingPredictions((prev) => ({
-                        ...prev,
-                        [match.id]: { ...prev[match.id], away: parseInt(e.target.value) || 0 },
-                      }))
+                      setEditingPredictions((prev) => {
+                        const existing = prev[match.id] || { home: 0, away: 0 };
+                        return {
+                          ...prev,
+                          [match.id]: { ...existing, away: parseInt(e.target.value) || 0 },
+                        };
+                      })
                     }
                     className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
                   />

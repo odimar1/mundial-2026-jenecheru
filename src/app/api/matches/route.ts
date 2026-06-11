@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(request);
     if (!user?.isAdmin) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }

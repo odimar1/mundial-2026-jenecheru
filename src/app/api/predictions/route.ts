@@ -5,7 +5,7 @@ import { getSessionUser } from '@/lib/auth';
 // GET all predictions (optionally filtered by userId or matchId)
 export async function GET(request: Request) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(request);
     if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 // POST save or update a prediction
 export async function POST(request: Request) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(request);
     if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
 // PUT save multiple predictions at once
 export async function PUT(request: Request) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(request);
     if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

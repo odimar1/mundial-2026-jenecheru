@@ -3,9 +3,9 @@ import { db } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 
 // GET all confirmed users (for the predictions dropdown)
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const currentUser = await getSessionUser();
+    const currentUser = await getSessionUser(request);
     if (!currentUser) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         isAdmin: user.isAdmin,
         isConfirmed: user.isConfirmed,
       },
+      token, // Return token for client-side storage as fallback
     });
 
     response.cookies.set('session_token', token, {

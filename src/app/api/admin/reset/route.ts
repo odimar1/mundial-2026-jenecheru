@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(request);
     if (!user?.isAdmin) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
