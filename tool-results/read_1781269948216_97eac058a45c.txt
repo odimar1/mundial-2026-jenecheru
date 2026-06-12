@@ -1,0 +1,502 @@
+   550→   550→   550→
+   551→   551→   551→  // Auth page
+   552→   552→   552→  if (!user) {
+   553→   553→   553→    return (
+   554→   554→   554→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0f1e] via-[#0f172a] to-[#0a0f1e] p-4">
+   555→   555→   555→        <Card className="w-full max-w-md bg-[#141b2d]/90 border-white/10 backdrop-blur-sm shadow-2xl shadow-black/50">
+   556→   556→   556→          <CardHeader className="text-center space-y-4">
+   557→   557→   557→            <div className="flex justify-center">
+   558→   558→   558→              <img
+   559→   559→   559→                src="/jenecheru26.png"
+   560→   560→   560→                alt="Jenecherú Logo"
+   561→   561→   561→                className="w-28 h-28 rounded-xl object-contain"
+   562→   562→   562→              />
+   563→   563→   563→            </div>
+   564→   564→   564→            <div>
+   565→   565→   565→              <CardTitle className="text-2xl font-bold text-white">
+   566→   566→   566→                Mundial 2026 Jenecherú
+   567→   567→   567→              </CardTitle>
+   568→   568→   568→              <CardDescription className="text-teal-400 mt-1 font-medium">
+   569→   569→   569→                ACTIVO FIJO
+   570→   570→   570→              </CardDescription>
+   571→   571→   571→            </div>
+   572→   572→   572→          </CardHeader>
+   573→   573→   573→          <CardContent>
+   574→   574→   574→            <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as 'login' | 'register')} className="w-full">
+   575→   575→   575→              <TabsList className="grid w-full grid-cols-2 bg-[#1e293b]">
+   576→   576→   576→                <TabsTrigger value="login" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+   577→   577→   577→                  Iniciar Sesión
+   578→   578→   578→                </TabsTrigger>
+   579→   579→   579→                <TabsTrigger value="register" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+   580→   580→   580→                  Registrarse
+   581→   581→   581→                </TabsTrigger>
+   582→   582→   582→              </TabsList>
+   583→   583→   583→
+   584→   584→   584→              <TabsContent value="login" className="mt-6">
+   585→   585→   585→                <form onSubmit={handleLogin} className="space-y-4">
+   586→   586→   586→                  <div className="space-y-2">
+   587→   587→   587→                    <Label className="text-slate-300">Usuario o Correo</Label>
+   588→   588→   588→                    <Input
+   589→   589→   589→                      value={loginName}
+   590→   590→   590→                      onChange={(e) => setLoginName(e.target.value)}
+   591→   591→   591→                      placeholder="Tu nombre de usuario"
+   592→   592→   592→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   593→   593→   593→                      required
+   594→   594→   594→                    />
+   595→   595→   595→                  </div>
+   596→   596→   596→                  <div className="space-y-2">
+   597→   597→   597→                    <Label className="text-slate-300">Contraseña</Label>
+   598→   598→   598→                    <Input
+   599→   599→   599→                      type="password"
+   600→   600→   600→                      value={loginPassword}
+   601→   601→   601→                      onChange={(e) => setLoginPassword(e.target.value)}
+   602→   602→   602→                      placeholder="Tu contraseña"
+   603→   603→   603→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   604→   604→   604→                      required
+   605→   605→   605→                    />
+   606→   606→   606→                  </div>
+   607→   607→   607→                  <Button
+   608→   608→   608→                    type="submit"
+   609→   609→   609→                    disabled={authLoading}
+   610→   610→   610→                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold h-11"
+   611→   611→   611→                  >
+   612→   612→   612→                    {authLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CircleDot className="h-4 w-4 mr-2" />}
+   613→   613→   613→                    Iniciar Sesión
+   614→   614→   614→                  </Button>
+   615→   615→   615→                </form>
+   616→   616→   616→              </TabsContent>
+   617→   617→   617→
+   618→   618→   618→              <TabsContent value="register" className="mt-6">
+   619→   619→   619→                <form onSubmit={handleRegister} className="space-y-4">
+   620→   620→   620→                  <div className="space-y-2">
+   621→   621→   621→                    <Label className="text-slate-300">Nombre de usuario</Label>
+   622→   622→   622→                    <Input
+   623→   623→   623→                      value={regName}
+   624→   624→   624→                      onChange={(e) => setRegName(e.target.value)}
+   625→   625→   625→                      placeholder="Tu nombre"
+   626→   626→   626→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   627→   627→   627→                      required
+   628→   628→   628→                    />
+   629→   629→   629→                  </div>
+   630→   630→   630→                  <div className="space-y-2">
+   631→   631→   631→                    <Label className="text-slate-300">Correo electrónico</Label>
+   632→   632→   632→                    <Input
+   633→   633→   633→                      type="email"
+   634→   634→   634→                      value={regEmail}
+   635→   635→   635→                      onChange={(e) => setRegEmail(e.target.value)}
+   636→   636→   636→                      placeholder="tu@correo.com"
+   637→   637→   637→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   638→   638→   638→                      required
+   639→   639→   639→                    />
+   640→   640→   640→                  </div>
+   641→   641→   641→                  <div className="space-y-2">
+   642→   642→   642→                    <Label className="text-slate-300">Contraseña</Label>
+   643→   643→   643→                    <Input
+   644→   644→   644→                      type="password"
+   645→   645→   645→                      value={regPassword}
+   646→   646→   646→                      onChange={(e) => setRegPassword(e.target.value)}
+   647→   647→   647→                      placeholder="Crea una contraseña"
+   648→   648→   648→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   649→   649→   649→                      required
+   650→   650→   650→                    />
+   651→   651→   651→                  </div>
+   652→   652→   652→                  <Button
+   653→   653→   653→                    type="submit"
+   654→   654→   654→                    disabled={authLoading}
+   655→   655→   655→                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold h-11"
+   656→   656→   656→                  >
+   657→   657→   657→                    {authLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   658→   658→   658→                    Registrarse
+   659→   659→   659→                  </Button>
+   660→   660→   660→                </form>
+   661→   661→   661→              </TabsContent>
+   662→   662→   662→            </Tabs>
+   663→   663→   663→          </CardContent>
+   664→   664→   664→        </Card>
+   665→   665→   665→      </div>
+   666→   666→   666→    );
+   667→   667→   667→  }
+   668→   668→   668→
+   669→   669→   669→  // Not confirmed notice
+   670→   670→   670→  if (!user.isConfirmed && !user.isAdmin) {
+   671→   671→   671→    return (
+   672→   672→   672→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0f1e] via-[#0f172a] to-[#0a0f1e] p-4">
+   673→   673→   673→        <Card className="w-full max-w-md bg-[#141b2d]/90 border-white/10 backdrop-blur-sm shadow-2xl shadow-black/50">
+   674→   674→   674→          <CardHeader className="text-center space-y-4">
+   675→   675→   675→            <div className="flex justify-center">
+   676→   676→   676→              <img
+   677→   677→   677→                src="/jenecheru26.png"
+   678→   678→   678→                alt="Jenecherú Logo"
+   679→   679→   679→                className="w-20 h-20 rounded-xl object-contain"
+   680→   680→   680→              />
+   681→   681→   681→            </div>
+   682→   682→   682→            <div>
+   683→   683→   683→              <CardTitle className="text-xl font-bold text-amber-400 flex items-center justify-center gap-2">
+   684→   684→   684→                <Eye className="h-5 w-5" /> Esperando Confirmación
+   685→   685→   685→              </CardTitle>
+   686→   686→   686→              <CardDescription className="text-slate-400 mt-2">
+   687→   687→   687→                Tu cuenta aún no ha sido confirmada por el administrador.
+   688→   688→   688→                <br />Por favor, espera a que sea aprobada.
+   689→   689→   689→              </CardDescription>
+   690→   690→   690→            </div>
+   691→   691→   691→          </CardHeader>
+   692→   692→   692→          <CardContent className="flex justify-center">
+   693→   693→   693→            <Button variant="outline" onClick={handleLogout} className="border-white/20 text-white hover:bg-white/10">
+   694→   694→   694→              <LogOut className="h-4 w-4 mr-2" /> Cerrar Sesión
+   695→   695→   695→            </Button>
+   696→   696→   696→          </CardContent>
+   697→   697→   697→        </Card>
+   698→   698→   698→      </div>
+   699→   699→   699→    );
+   700→   700→   700→  }
+   701→   701→   701→
+   702→   702→   702→  // Group matches by group
+   703→   703→   703→  const matchesByGroup = groupOrder.map((group) => ({
+   704→   704→   704→    group,
+   705→   705→   705→    matches: matches.filter((m) => m.group === group),
+   706→   706→   706→  })).filter((g) => g.matches.length > 0);
+   707→   707→   707→
+   708→   708→   708→  // Determine if user is viewing own predictions or another's
+   709→   709→   709→  const isViewingOwn = !viewingUserId || viewingUserId === user.id;
+   710→   710→   710→
+   711→   711→   711→  // Get prediction for a match from viewed predictions
+   712→   712→   712→  const getViewedPrediction = (matchId: string) => {
+   713→   713→   713→    if (isViewingOwn) {
+   714→   714→   714→      return predictions.find((p) => p.matchId === matchId);
+   715→   715→   715→    }
+   716→   716→   716→    return viewedPredictions.find((p) => p.matchId === matchId);
+   717→   717→   717→  };
+   718→   718→   718→
+   719→   719→   719→  // Get editing value for a match
+   720→   720→   720→  const getEditingValue = (matchId: string) => {
+   721→   721→   721→    return editingPredictions[matchId] || { home: 0, away: 0 };
+   722→   722→   722→  };
+   723→   723→   723→
+   724→   724→   724→  // Match Card Component for predictions
+   725→   725→   725→  const MatchCard = ({ match }: { match: Match }) => {
+   726→   726→   726→    const pred = getViewedPrediction(match.id);
+   727→   727→   727→    const editing = getEditingValue(match.id);
+   728→   728→   728→    const canEdit = isViewingOwn && !predictionsLocked && !match.isCompleted && !user?.isAdmin;
+   729→   729→   729→    const homeFlag = countryFlags[match.homeTeam] || '';
+   730→   730→   730→    const awayFlag = countryFlags[match.awayTeam] || '';
+   731→   731→   731→    const homeCode = countryCodes[match.homeTeam] || '';
+   732→   732→   732→    const awayCode = countryCodes[match.awayTeam] || '';
+   733→   733→   733→
+   734→   734→   734→    return (
+   735→   735→   735→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden hover:border-white/10 transition-colors">
+   736→   736→   736→        {/* Card Header - Group & Venue Info */}
+   737→   737→   737→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   738→   738→   738→          <div className="flex items-center justify-between">
+   739→   739→   739→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   740→   740→   740→              {match.group}
+   741→   741→   741→            </span>
+   742→   742→   742→            {match.isCompleted && (
+   743→   743→   743→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+   744→   744→   744→            )}
+   745→   745→   745→          </div>
+   746→   746→   746→          <div className="flex items-center gap-2 mt-0.5">
+   747→   747→   747→            {match.venue && (
+   748→   748→   748→              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   749→   749→   749→                <MapPin className="h-2.5 w-2.5" /> {match.venue}
+   750→   750→   750→              </span>
+   751→   751→   751→            )}
+   752→   752→   752→          </div>
+   753→   753→   753→          {match.date && (
+   754→   754→   754→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   755→   755→   755→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+   756→   756→   756→            </span>
+   757→   757→   757→          )}
+   758→   758→   758→        </div>
+   759→   759→   759→
+   760→   760→   760→        {/* Teams & Score */}
+   761→   761→   761→        <div className="p-3">
+   762→   762→   762→          <div className="flex items-center justify-between gap-2">
+   763→   763→   763→            {/* Home Team */}
+   764→   764→   764→            <div className="flex-1 flex items-center gap-2 min-w-0">
+   765→   765→   765→              <span className="text-lg">{homeFlag}</span>
+   766→   766→   766→              <div className="min-w-0">
+   767→   767→   767→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+   768→   768→   768→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+   769→   769→   769→              </div>
+   770→   770→   770→            </div>
+   771→   771→   771→
+   772→   772→   772→            {/* Score Section */}
+   773→   773→   773→            <div className="flex items-center gap-1.5 shrink-0">
+   774→   774→   774→              {canEdit ? (
+   775→   775→   775→                <>
+   776→   776→   776→                  <Input
+   777→   777→   777→                    type="number"
+   778→   778→   778→                    min="0"
+   779→   779→   779→                    max="99"
+   780→   780→   780→                    value={editing.home}
+   781→   781→   781→                    onChange={(e) =>
+   782→   782→   782→                      setEditingPredictions((prev) => {
+   783→   783→   783→                        const existing = prev[match.id] || { home: 0, away: 0 };
+   784→   784→   784→                        return {
+   785→   785→   785→                          ...prev,
+   786→   786→   786→                          [match.id]: { ...existing, home: parseInt(e.target.value) || 0 },
+   787→   787→   787→                        };
+   788→   788→   788→                      })
+   789→   789→   789→                    }
+   790→   790→   790→                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   791→   791→   791→                  />
+   792→   792→   792→                  <span className="text-slate-500 text-xs">-</span>
+   793→   793→   793→                  <Input
+   794→   794→   794→                    type="number"
+   795→   795→   795→                    min="0"
+   796→   796→   796→                    max="99"
+   797→   797→   797→                    value={editing.away}
+   798→   798→   798→                    onChange={(e) =>
+   799→   799→   799→                      setEditingPredictions((prev) => {
+   800→   800→   800→                        const existing = prev[match.id] || { home: 0, away: 0 };
+   801→   801→   801→                        return {
+   802→   802→   802→                          ...prev,
+   803→   803→   803→                          [match.id]: { ...existing, away: parseInt(e.target.value) || 0 },
+   804→   804→   804→                        };
+   805→   805→   805→                      })
+   806→   806→   806→                    }
+   807→   807→   807→                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   808→   808→   808→                  />
+   809→   809→   809→                </>
+   810→   810→   810→              ) : match.isCompleted ? (
+   811→   811→   811→                <div className="flex items-center gap-1.5">
+   812→   812→   812→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   813→   813→   813→                    {match.homeScore}
+   814→   814→   814→                  </span>
+   815→   815→   815→                  <span className="text-slate-500 text-xs">-</span>
+   816→   816→   816→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   817→   817→   817→                    {match.awayScore}
+   818→   818→   818→                  </span>
+   819→   819→   819→                </div>
+   820→   820→   820→              ) : pred ? (
+   821→   821→   821→                <div className="flex items-center gap-1.5">
+   822→   822→   822→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   823→   823→   823→                    {pred.homeScore}
+   824→   824→   824→                  </span>
+   825→   825→   825→                  <span className="text-slate-500 text-xs">-</span>
+   826→   826→   826→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   827→   827→   827→                    {pred.awayScore}
+   828→   828→   828→                  </span>
+   829→   829→   829→                </div>
+   830→   830→   830→              ) : (
+   831→   831→   831→                <div className="flex items-center gap-1.5">
+   832→   832→   832→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+   833→   833→   833→                  <span className="text-slate-500 text-xs">-</span>
+   834→   834→   834→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+   835→   835→   835→                </div>
+   836→   836→   836→              )}
+   837→   837→   837→            </div>
+   838→   838→   838→
+   839→   839→   839→            {/* Away Team */}
+   840→   840→   840→            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+   841→   841→   841→              <div className="min-w-0 text-right">
+   842→   842→   842→                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+   843→   843→   843→                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+   844→   844→   844→              </div>
+   845→   845→   845→              <span className="text-lg">{awayFlag}</span>
+   846→   846→   846→            </div>
+   847→   847→   847→          </div>
+   848→   848→   848→
+   849→   849→   849→          {/* Points badge */}
+   850→   850→   850→          {pred && pred.points !== null && pred.points !== undefined && (
+   851→   851→   851→            <div className="mt-1.5 text-center">
+   852→   852→   852→              <Badge className={`text-[10px] ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600/70'}`}>
+   853→   853→   853→                +{pred.points} {pred.points === 3 ? 'pts exacto' : pred.points === 1 ? 'pt parcial' : 'pts'}
+   854→   854→   854→              </Badge>
+   855→   855→   855→            </div>
+   856→   856→   856→          )}
+   857→   857→   857→        </div>
+   858→   858→   858→      </div>
+   859→   859→   859→    );
+   860→   860→   860→  };
+   861→   861→   861→
+   862→   862→   862→  // Result Match Card for admin
+   863→   863→   863→  const ResultMatchCard = ({ match }: { match: Match }) => {
+   864→   864→   864→    const homeFlag = countryFlags[match.homeTeam] || '';
+   865→   865→   865→    const awayFlag = countryFlags[match.awayTeam] || '';
+   866→   866→   866→    const homeCode = countryCodes[match.homeTeam] || '';
+   867→   867→   867→    const awayCode = countryCodes[match.awayTeam] || '';
+   868→   868→   868→    const currentResult = matchResults[match.id] || {
+   869→   869→   869→      home: match.homeScore?.toString() || '',
+   870→   870→   870→      away: match.awayScore?.toString() || '',
+   871→   871→   871→    };
+   872→   872→   872→
+   873→   873→   873→    return (
+   874→   874→   874→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+   875→   875→   875→        {/* Card Header */}
+   876→   876→   876→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   877→   877→   877→          <div className="flex items-center justify-between">
+   878→   878→   878→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   879→   879→   879→              {match.group}
+   880→   880→   880→            </span>
+   881→   881→   881→            {match.isCompleted && (
+   882→   882→   882→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+   883→   883→   883→            )}
+   884→   884→   884→          </div>
+   885→   885→   885→          {match.venue && (
+   886→   886→   886→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+   887→   887→   887→              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+   888→   888→   888→            </span>
+   889→   889→   889→          )}
+   890→   890→   890→          {match.date && (
+   891→   891→   891→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   892→   892→   892→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+   893→   893→   893→            </span>
+   894→   894→   894→          )}
+   895→   895→   895→        </div>
+   896→   896→   896→
+   897→   897→   897→        {/* Teams & Score Input */}
+   898→   898→   898→        <div className="p-3">
+   899→   899→   899→          <div className="flex items-center justify-between gap-2">
+   900→   900→   900→            {/* Home Team */}
+   901→   901→   901→            <div className="flex-1 flex items-center gap-2 min-w-0">
+   902→   902→   902→              <span className="text-lg">{homeFlag}</span>
+   903→   903→   903→              <div className="min-w-0">
+   904→   904→   904→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+   905→   905→   905→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+   906→   906→   906→              </div>
+   907→   907→   907→            </div>
+   908→   908→   908→
+   909→   909→   909→            {/* Score Input */}
+   910→   910→   910→            {user.isAdmin && (
+   911→   911→   911→              <div className="flex items-center gap-1.5 shrink-0">
+   912→   912→   912→                <Input
+   913→   913→   913→                  type="number"
+   914→   914→   914→                  min="0"
+   915→   915→   915→                  max="99"
+   916→   916→   916→                  placeholder="-"
+   917→   917→   917→                  value={currentResult.home}
+   918→   918→   918→                  onChange={(e) =>
+   919→   919→   919→                    setMatchResults((prev) => ({
+   920→   920→   920→                      ...prev,
+   921→   921→   921→                      [match.id]: { ...prev[match.id], home: e.target.value },
+   922→   922→   922→                    }))
+   923→   923→   923→                  }
+   924→   924→   924→                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   925→   925→   925→                />
+   926→   926→   926→                <span className="text-slate-500 text-xs">-</span>
+   927→   927→   927→                <Input
+   928→   928→   928→                  type="number"
+   929→   929→   929→                  min="0"
+   930→   930→   930→                  max="99"
+   931→   931→   931→                  placeholder="-"
+   932→   932→   932→                  value={currentResult.away}
+   933→   933→   933→                  onChange={(e) =>
+   934→   934→   934→                    setMatchResults((prev) => ({
+   935→   935→   935→                      ...prev,
+   936→   936→   936→                      [match.id]: { ...prev[match.id], away: e.target.value },
+   937→   937→   937→                    }))
+   938→   938→   938→                  }
+   939→   939→   939→                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   940→   940→   940→                />
+   941→   941→   941→              </div>
+   942→   942→   942→            )}
+   943→   943→   943→
+   944→   944→   944→            {/* Away Team */}
+   945→   945→   945→            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+   946→   946→   946→              <div className="min-w-0 text-right">
+   947→   947→   947→                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+   948→   948→   948→                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+   949→   949→   949→              </div>
+   950→   950→   950→              <span className="text-lg">{awayFlag}</span>
+   951→   951→   951→            </div>
+   952→   952→   952→          </div>
+   953→   953→   953→
+   954→   954→   954→          {/* Save result button (admin only) */}
+   955→   955→   955→          {user.isAdmin && !match.isCompleted && (
+   956→   956→   956→            <div className="mt-2">
+   957→   957→   957→              <Button
+   958→   958→   958→                size="sm"
+   959→   959→   959→                onClick={() => handleSaveResult(match.id)}
+   960→   960→   960→                disabled={savingResult === match.id}
+   961→   961→   961→                className="w-full h-7 bg-teal-600 hover:bg-teal-500 text-white text-xs"
+   962→   962→   962→              >
+   963→   963→   963→                {savingResult === match.id ? (
+   964→   964→   964→                  <Loader2 className="h-3 w-3 animate-spin" />
+   965→   965→   965→                ) : (
+   966→   966→   966→                  <Save className="h-3 w-3 mr-1" />
+   967→   967→   967→                )}
+   968→   968→   968→                Guardar
+   969→   969→   969→              </Button>
+   970→   970→   970→            </div>
+   971→   971→   971→          )}
+   972→   972→   972→
+   973→   973→   973→          {/* Completed result display */}
+   974→   974→   974→          {match.isCompleted && (
+   975→   975→   975→            <div className="mt-1.5 text-center">
+   976→   976→   976→              <span className="text-emerald-400 text-xs font-medium">
+   977→   977→   977→                Resultado: {match.homeScore} - {match.awayScore}
+   978→   978→   978→              </span>
+   979→   979→   979→            </div>
+   980→   980→   980→          )}
+   981→   981→   981→        </div>
+   982→   982→   982→      </div>
+   983→   983→   983→    );
+   984→   984→   984→  };
+   985→   985→   985→
+   986→   986→   986→  // User Results View Card (non-admin)
+   987→   987→   987→  const UserResultCard = ({ match }: { match: Match }) => {
+   988→   988→   988→    const pred = predictions.find((p) => p.matchId === match.id);
+   989→   989→   989→    const homeFlag = countryFlags[match.homeTeam] || '';
+   990→   990→   990→    const awayFlag = countryFlags[match.awayTeam] || '';
+   991→   991→   991→    const homeCode = countryCodes[match.homeTeam] || '';
+   992→   992→   992→    const awayCode = countryCodes[match.awayTeam] || '';
+   993→   993→   993→
+   994→   994→   994→    return (
+   995→   995→   995→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+   996→   996→   996→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   997→   997→   997→          <div className="flex items-center justify-between">
+   998→   998→   998→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   999→   999→   999→              {match.group}
+  1000→  1000→  1000→            </span>
+  1001→  1001→  1001→            {match.isCompleted && (
+  1002→  1002→  1002→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+  1003→  1003→  1003→            )}
+  1004→  1004→  1004→          </div>
+  1005→  1005→  1005→          {match.venue && (
+  1006→  1006→  1006→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+  1007→  1007→  1007→              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+  1008→  1008→  1008→            </span>
+  1009→  1009→  1009→          )}
+  1010→  1010→  1010→          {match.date && (
+  1011→  1011→  1011→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+  1012→  1012→  1012→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+  1013→  1013→  1013→            </span>
+  1014→  1014→  1014→          )}
+  1015→  1015→  1015→        </div>
+  1016→  1016→  1016→        <div className="p-3">
+  1017→  1017→  1017→          <div className="flex items-center justify-between gap-2">
+  1018→  1018→  1018→            <div className="flex-1 flex items-center gap-2 min-w-0">
+  1019→  1019→  1019→              <span className="text-lg">{homeFlag}</span>
+  1020→  1020→  1020→              <div className="min-w-0">
+  1021→  1021→  1021→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+  1022→  1022→  1022→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+  1023→  1023→  1023→              </div>
+  1024→  1024→  1024→            </div>
+  1025→  1025→  1025→
+  1026→  1026→  1026→            <div className="flex items-center gap-2 shrink-0">
+  1027→  1027→  1027→              {match.isCompleted ? (
+  1028→  1028→  1028→                <div className="flex items-center gap-1.5">
+  1029→  1029→  1029→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+  1030→  1030→  1030→                    {match.homeScore}
+  1031→  1031→  1031→                  </span>
+  1032→  1032→  1032→                  <span className="text-slate-500 text-xs">-</span>
+  1033→  1033→  1033→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+  1034→  1034→  1034→                    {match.awayScore}
+  1035→  1035→  1035→                  </span>
+  1036→  1036→  1036→                </div>
+  1037→  1037→  1037→              ) : (
+  1038→  1038→  1038→                <span className="text-slate-500 text-xs">Pendiente</span>
+  1039→  1039→  1039→              )}
+  1040→  1040→  1040→
+  1041→  1041→  1041→              {pred && (
+  1042→  1042→  1042→                <div className="flex flex-col items-center">
+  1043→  1043→  1043→                  <span className="text-[9px] text-slate-500">Mi pronóstico</span>
+  1044→  1044→  1044→                  <span className="text-white text-xs font-bold">
+  1045→  1045→  1045→                    {pred.homeScore}-{pred.awayScore}
+  1046→  1046→  1046→                  </span>
+  1047→  1047→  1047→                </div>
+  1048→  1048→  1048→              )}
+  1049→  1049→  1049→            </div>
+
+[showing lines 550-1049 of 1657; use offset=1050 with limit to continue reading]

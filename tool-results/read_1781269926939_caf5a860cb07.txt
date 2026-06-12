@@ -1,0 +1,1657 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useRef } from 'react';
+     4→import { toast } from 'sonner';
+     5→import {
+     6→  Trophy,
+     7→  ClipboardList,
+     8→  Globe,
+     9→  LogOut,
+    10→  Shield,
+    11→  Users,
+    12→  RotateCcw,
+    13→  Save,
+    14→  CircleDot,
+    15→  Loader2,
+    16→  Medal,
+    17→  ChevronDown,
+    18→  ChevronRight,
+    19→  Eye,
+    20→  MapPin,
+    21→  Clock,
+    22→  Calendar,
+    23→} from 'lucide-react';
+    24→import { Button } from '@/components/ui/button';
+    25→import { Input } from '@/components/ui/input';
+    26→import { Label } from '@/components/ui/label';
+    27→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+    28→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    29→import { Badge } from '@/components/ui/badge';
+    30→import { Switch } from '@/components/ui/switch';
+    31→import {
+    32→  Select,
+    33→  SelectContent,
+    34→  SelectItem,
+    35→  SelectTrigger,
+    36→  SelectValue,
+    37→} from '@/components/ui/select';
+    38→import {
+    39→  AlertDialog,
+    40→  AlertDialogAction,
+    41→  AlertDialogCancel,
+    42→  AlertDialogContent,
+    43→  AlertDialogDescription,
+    44→  AlertDialogFooter,
+    45→  AlertDialogHeader,
+    46→  AlertDialogTitle,
+    47→  AlertDialogTrigger,
+    48→} from '@/components/ui/alert-dialog';
+    49→import { ScrollArea } from '@/components/ui/scroll-area';
+    50→
+    51→// Types
+    52→interface User {
+    53→  id: string;
+    54→  name: string;
+    55→  email: string;
+    56→  isAdmin: boolean;
+    57→  isConfirmed: boolean;
+    58→}
+    59→
+    60→interface Match {
+    61→  id: string;
+    62→  matchNumber: number;
+    63→  homeTeam: string;
+    64→  awayTeam: string;
+    65→  group: string;
+    66→  venue: string | null;
+    67→  date: string | null;
+    68→  homeScore: number | null;
+    69→  awayScore: number | null;
+    70→  isCompleted: boolean;
+    71→}
+    72→
+    73→interface Prediction {
+    74→  id: string;
+    75→  userId: string;
+    76→  matchId: string;
+    77→  homeScore: number;
+    78→  awayScore: number;
+    79→  points: number | null;
+    80→  user?: { id: string; name: string; isConfirmed: boolean };
+    81→  match?: Match;
+    82→}
+    83→
+    84→interface LeaderboardEntry {
+    85→  id: string;
+    86→  name: string;
+    87→  exactPredictions: number;
+    88→  partialPredictions: number;
+    89→  totalPoints: number;
+    90→  totalPredictions: number;
+    91→}
+    92→
+    93→interface AdminUser {
+    94→  id: string;
+    95→  name: string;
+    96→  email: string;
+    97→  isConfirmed: boolean;
+    98→  createdAt: string;
+    99→  _count: { predictions: number };
+   100→}
+   101→
+   102→interface ConfirmedUser {
+   103→  id: string;
+   104→  name: string;
+   105→}
+   106→
+   107→// Country flag emojis
+   108→const countryFlags: Record<string, string> = {
+   109→  'México': '🇲🇽', 'Sudáfrica': '🇿🇦', 'Corea del Sur': '🇰🇷', 'Chequia': '🇨🇿',
+   110→  'Canadá': '🇨🇦', 'Bosnia y Herzegovina': '🇧🇦', 'Qatar': '🇶🇦', 'Suiza': '🇨🇭',
+   111→  'Brasil': '🇧🇷', 'Marruecos': '🇲🇦', 'Haití': '🇭🇹', 'Escocia': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+   112→  'Estados Unidos': '🇺🇸', 'Paraguay': '🇵🇾', 'Australia': '🇦🇺', 'Turquía': '🇹🇷',
+   113→  'Alemania': '🇩🇪', 'Curazao': '🇨🇼', 'Costa de Marfil': '🇨🇮', 'Ecuador': '🇪🇨',
+   114→  'Países Bajos': '🇳🇱', 'Japón': '🇯🇵', 'Suecia': '🇸🇪', 'Túnez': '🇹🇳',
+   115→  'Bélgica': '🇧🇪', 'Egipto': '🇪🇬', 'Irán': '🇮🇷', 'Nueva Zelanda': '🇳🇿',
+   116→  'España': '🇪🇸', 'Cabo Verde': '🇨🇻', 'Arabia Saudita': '🇸🇦', 'Uruguay': '🇺🇾',
+   117→  'Francia': '🇫🇷', 'Senegal': '🇸🇳', 'Irak': '🇮🇶', 'Noruega': '🇳🇴',
+   118→  'Argentina': '🇦🇷', 'Argelia': '🇩🇿', 'Austria': '🇦🇹', 'Jordania': '🇯🇴',
+   119→  'Portugal': '🇵🇹', 'RD Congo': '🇨🇩', 'Uzbekistán': '🇺🇿', 'Colombia': '🇨🇴',
+   120→  'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croacia': '🇭🇷', 'Ghana': '🇬🇭', 'Panamá': '🇵🇦',
+   121→};
+   122→
+   123→// Country codes for display
+   124→const countryCodes: Record<string, string> = {
+   125→  'México': 'MX', 'Sudáfrica': 'ZA', 'Corea del Sur': 'KR', 'Chequia': 'CZ',
+   126→  'Canadá': 'CA', 'Bosnia y Herzegovina': 'BA', 'Qatar': 'QA', 'Suiza': 'CH',
+   127→  'Brasil': 'BR', 'Marruecos': 'MA', 'Haití': 'HT', 'Escocia': 'SC',
+   128→  'Estados Unidos': 'US', 'Paraguay': 'PY', 'Australia': 'AU', 'Turquía': 'TR',
+   129→  'Alemania': 'DE', 'Curazao': 'CW', 'Costa de Marfil': 'CI', 'Ecuador': 'EC',
+   130→  'Países Bajos': 'NL', 'Japón': 'JP', 'Suecia': 'SE', 'Túnez': 'TN',
+   131→  'Bélgica': 'BE', 'Egipto': 'EG', 'Irán': 'IR', 'Nueva Zelanda': 'NZ',
+   132→  'España': 'ES', 'Cabo Verde': 'CV', 'Arabia Saudita': 'SA', 'Uruguay': 'UY',
+   133→  'Francia': 'FR', 'Senegal': 'SN', 'Irak': 'IQ', 'Noruega': 'NO',
+   134→  'Argentina': 'AR', 'Argelia': 'DZ', 'Austria': 'AT', 'Jordania': 'JO',
+   135→  'Portugal': 'PT', 'RD Congo': 'CD', 'Uzbekistán': 'UZ', 'Colombia': 'CO',
+   136→  'Inglaterra': 'EN', 'Croacia': 'HR', 'Ghana': 'GH', 'Panamá': 'PA',
+   137→};
+   138→
+   139→export default function Home() {
+   140→  const [user, setUser] = useState<User | null>(null);
+   141→  const [sessionToken, setSessionToken] = useState<string>('');
+   142→  const [loading, setLoading] = useState(true);
+   143→  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+   144→  const [activeTab, setActiveTab] = useState('predictions');
+   145→  const mainRef = useRef<HTMLDivElement>(null);
+   146→
+   147→  // Auth form state
+   148→  const [loginName, setLoginName] = useState('');
+   149→  const [loginPassword, setLoginPassword] = useState('');
+   150→  const [regName, setRegName] = useState('');
+   151→  const [regEmail, setRegEmail] = useState('');
+   152→  const [regPassword, setRegPassword] = useState('');
+   153→  const [authLoading, setAuthLoading] = useState(false);
+   154→
+   155→  // Data state
+   156→  const [matches, setMatches] = useState<Match[]>([]);
+   157→  const [predictions, setPredictions] = useState<Prediction[]>([]);
+   158→  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+   159→  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+   160→  const [confirmedUsers, setConfirmedUsers] = useState<ConfirmedUser[]>([]);
+   161→  const [predictionsLocked, setPredictionsLocked] = useState(false);
+   162→
+   163→  // Prediction viewing state
+   164→  const [viewingUserId, setViewingUserId] = useState<string>('');
+   165→  const [viewedPredictions, setViewedPredictions] = useState<Prediction[]>([]);
+   166→  const [viewedUserName, setViewedUserName] = useState<string>('');
+   167→
+   168→  // Editing predictions state
+   169→  const [editingPredictions, setEditingPredictions] = useState<Record<string, { home: number; away: number }>>({});
+   170→  const [matchResults, setMatchResults] = useState<Record<string, { home: string; away: string }>>({});
+   171→  const [savingResult, setSavingResult] = useState<string | null>(null);
+   172→  const [savingPredictions, setSavingPredictions] = useState(false);
+   173→
+   174→  // Group matches
+   175→  const groupOrder = ['Grupo A', 'Grupo B', 'Grupo C', 'Grupo D', 'Grupo E', 'Grupo F', 'Grupo G', 'Grupo H', 'Grupo I', 'Grupo J', 'Grupo K', 'Grupo L'];
+   176→
+   177→  // Authenticated fetch helper - sends token via Authorization header as fallback
+   178→  const authFetch = async (url: string, options?: RequestInit) => {
+   179→    const headers: Record<string, string> = {
+   180→      ...(options?.headers as Record<string, string> || {}),
+   181→    };
+   182→    if (sessionToken) {
+   183→      headers['Authorization'] = `Bearer ${sessionToken}`;
+   184→    }
+   185→    return fetch(url, { ...options, headers });
+   186→  };
+   187→
+   188→  // Check session on mount
+   189→  useEffect(() => {
+   190→    checkSession();
+   191→  }, []);
+   192→
+   193→  const checkSession = async () => {
+   194→    try {
+   195→      // Try to restore token from localStorage
+   196→      const storedToken = localStorage.getItem('session_token');
+   197→      if (storedToken) {
+   198→        setSessionToken(storedToken);
+   199→      }
+   200→      const headers: Record<string, string> = {};
+   201→      if (storedToken) {
+   202→        headers['Authorization'] = `Bearer ${storedToken}`;
+   203→      }
+   204→      const res = await fetch('/api/auth/me', { headers });
+   205→      const data = await res.json();
+   206→      if (data.user) {
+   207→        setUser(data.user);
+   208→        if (data.token) {
+   209→          setSessionToken(data.token);
+   210→          localStorage.setItem('session_token', data.token);
+   211→        }
+   212→      } else if (storedToken) {
+   213→        // Token invalid, clear it
+   214→        localStorage.removeItem('session_token');
+   215→        setSessionToken('');
+   216→      }
+   217→    } catch {
+   218→      // Not logged in
+   219→    } finally {
+   220→      setLoading(false);
+   221→    }
+   222→  };
+   223→
+   224→  // Fetch data when user logs in
+   225→  useEffect(() => {
+   226→    if (user) {
+   227→      fetchMatches();
+   228→      fetchLeaderboard();
+   229→      if (user.isAdmin) {
+   230→        fetchAdminUsers();
+   231→        fetchSettings();
+   232→        fetchConfirmedUsers();
+   233→      } else {
+   234→        fetchMyPredictions();
+   235→        fetchConfirmedUsers();
+   236→      }
+   237→    }
+   238→  }, [user, sessionToken]);
+   239→
+   240→  const fetchMatches = async () => {
+   241→    try {
+   242→      const res = await fetch('/api/matches');
+   243→      const data = await res.json();
+   244→      setMatches(data.matches || []);
+   245→    } catch (error) {
+   246→      console.error('Error fetching matches:', error);
+   247→    }
+   248→  };
+   249→
+   250→  const fetchMyPredictions = async () => {
+   251→    if (!user) return;
+   252→    try {
+   253→      const res = await authFetch(`/api/predictions?userId=${user.id}`);
+   254→      const data = await res.json();
+   255→      setPredictions(data.predictions || []);
+   256→      const editing: Record<string, { home: number; away: number }> = {};
+   257→      for (const p of data.predictions || []) {
+   258→        editing[p.matchId] = { home: p.homeScore, away: p.awayScore };
+   259→      }
+   260→      setEditingPredictions(editing);
+   261→    } catch (error) {
+   262→      console.error('Error fetching predictions:', error);
+   263→    }
+   264→  };
+   265→
+   266→  const fetchLeaderboard = async () => {
+   267→    try {
+   268→      const res = await fetch('/api/leaderboard');
+   269→      const data = await res.json();
+   270→      setLeaderboard(data.leaderboard || []);
+   271→    } catch (error) {
+   272→      console.error('Error fetching leaderboard:', error);
+   273→    }
+   274→  };
+   275→
+   276→  const fetchAdminUsers = async () => {
+   277→    try {
+   278→      const res = await authFetch('/api/admin/users');
+   279→      if (!res.ok) {
+   280→        console.error('Admin users fetch failed:', res.status);
+   281→        return;
+   282→      }
+   283→      const data = await res.json();
+   284→      setAdminUsers(data.users || []);
+   285→    } catch (error) {
+   286→      console.error('Error fetching admin users:', error);
+   287→    }
+   288→  };
+   289→
+   290→  const fetchConfirmedUsers = async () => {
+   291→    try {
+   292→      const res = await authFetch('/api/users/confirmed');
+   293→      if (!res.ok) {
+   294→        return;
+   295→      }
+   296→      const data = await res.json();
+   297→      setConfirmedUsers(data.users || []);
+   298→    } catch (error) {
+   299→      console.error('Error fetching confirmed users:', error);
+   300→    }
+   301→  };
+   302→
+   303→  const fetchSettings = async () => {
+   304→    try {
+   305→      const res = await authFetch('/api/admin/settings');
+   306→      const data = await res.json();
+   307→      setPredictionsLocked(data.settings?.predictionsLocked === 'true');
+   308→    } catch (error) {
+   309→      console.error('Error fetching settings:', error);
+   310→    }
+   311→  };
+   312→
+   313→  const fetchUserPredictions = async (userId: string) => {
+   314→    try {
+   315→      const res = await authFetch(`/api/predictions?userId=${userId}`);
+   316→      const data = await res.json();
+   317→      setViewedPredictions(data.predictions || []);
+   318→    } catch (error) {
+   319→      console.error('Error fetching user predictions:', error);
+   320→    }
+   321→  };
+   322→
+   323→  // Auth handlers
+   324→  const handleLogin = async (e: React.FormEvent) => {
+   325→    e.preventDefault();
+   326→    setAuthLoading(true);
+   327→    try {
+   328→      const res = await fetch('/api/auth/login', {
+   329→        method: 'POST',
+   330→        headers: { 'Content-Type': 'application/json' },
+   331→        body: JSON.stringify({ name: loginName, password: loginPassword }),
+   332→      });
+   333→      const data = await res.json();
+   334→      if (res.ok) {
+   335→        setUser(data.user);
+   336→        if (data.token) {
+   337→          setSessionToken(data.token);
+   338→          localStorage.setItem('session_token', data.token);
+   339→        }
+   340→        setLoginName('');
+   341→        setLoginPassword('');
+   342→        toast.success(`¡Bienvenido, ${data.user.name}!`);
+   343→      } else {
+   344→        toast.error(data.error || 'Error al iniciar sesión');
+   345→      }
+   346→    } catch {
+   347→      toast.error('Error de conexión');
+   348→    } finally {
+   349→      setAuthLoading(false);
+   350→    }
+   351→  };
+   352→
+   353→  const handleRegister = async (e: React.FormEvent) => {
+   354→    e.preventDefault();
+   355→    setAuthLoading(true);
+   356→    try {
+   357→      const res = await fetch('/api/auth/register', {
+   358→        method: 'POST',
+   359→        headers: { 'Content-Type': 'application/json' },
+   360→        body: JSON.stringify({ name: regName, email: regEmail, password: regPassword }),
+   361→      });
+   362→      const data = await res.json();
+   363→      if (res.ok) {
+   364→        setUser(data.user);
+   365→        if (data.token) {
+   366→          setSessionToken(data.token);
+   367→          localStorage.setItem('session_token', data.token);
+   368→        }
+   369→        setRegName('');
+   370→        setRegEmail('');
+   371→        setRegPassword('');
+   372→        toast.success('¡Registro exitoso! Espera la confirmación del administrador.');
+   373→      } else {
+   374→        toast.error(data.error || 'Error al registrarse');
+   375→      }
+   376→    } catch {
+   377→      toast.error('Error de conexión');
+   378→    } finally {
+   379→      setAuthLoading(false);
+   380→    }
+   381→  };
+   382→
+   383→  const handleLogout = async () => {
+   384→    try {
+   385→      await authFetch('/api/auth/logout', { method: 'POST' });
+   386→      setUser(null);
+   387→      setSessionToken('');
+   388→      localStorage.removeItem('session_token');
+   389→      setPredictions([]);
+   390→      setLeaderboard([]);
+   391→      setAdminUsers([]);
+   392→      setViewingUserId('');
+   393→      setViewedPredictions([]);
+   394→      toast.success('Sesión cerrada');
+   395→    } catch {
+   396→      toast.error('Error al cerrar sesión');
+   397→    }
+   398→  };
+   399→
+   400→  // Prediction handlers
+   401→  const handleSavePredictions = async () => {
+   402→    setSavingPredictions(true);
+   403→    try {
+   404→      const preds = Object.entries(editingPredictions)
+   405→        .filter(([, scores]) => scores.home !== undefined && scores.away !== undefined)
+   406→        .map(([matchId, scores]) => ({
+   407→          matchId,
+   408→          homeScore: scores.home ?? 0,
+   409→          awayScore: scores.away ?? 0,
+   410→        }));
+   411→
+   412→      const res = await authFetch('/api/predictions', {
+   413→        method: 'PUT',
+   414→        headers: { 'Content-Type': 'application/json' },
+   415→        body: JSON.stringify({ predictions: preds }),
+   416→      });
+   417→
+   418→      const data = await res.json();
+   419→      if (res.ok) {
+   420→        toast.success('¡Predicciones guardadas exitosamente!');
+   421→        fetchMyPredictions();
+   422→        fetchLeaderboard();
+   423→      } else {
+   424→        toast.error(data.error || 'Error al guardar predicciones');
+   425→      }
+   426→    } catch {
+   427→      toast.error('Error de conexión');
+   428→    } finally {
+   429→      setSavingPredictions(false);
+   430→    }
+   431→  };
+   432→
+   433→  // Admin handlers
+   434→  const handleConfirmUser = async (userId: string, isConfirmed: boolean) => {
+   435→    try {
+   436→      const res = await authFetch('/api/admin/users', {
+   437→        method: 'PUT',
+   438→        headers: { 'Content-Type': 'application/json' },
+   439→        body: JSON.stringify({ userId, isConfirmed }),
+   440→      });
+   441→      if (res.ok) {
+   442→        toast.success(isConfirmed ? 'Usuario confirmado' : 'Usuario desconfirmado');
+   443→        fetchAdminUsers();
+   444→        fetchLeaderboard();
+   445→        fetchConfirmedUsers();
+   446→      }
+   447→    } catch {
+   448→      toast.error('Error al actualizar usuario');
+   449→    }
+   450→  };
+   451→
+   452→  const handleToggleLock = async () => {
+   453→    try {
+   454→      const res = await authFetch('/api/admin/settings', {
+   455→        method: 'PUT',
+   456→        headers: { 'Content-Type': 'application/json' },
+   457→        body: JSON.stringify({ key: 'predictionsLocked', value: (!predictionsLocked).toString() }),
+   458→      });
+   459→      if (res.ok) {
+   460→        setPredictionsLocked(!predictionsLocked);
+   461→        toast.success(predictionsLocked ? 'Predicciones desbloqueadas' : 'Predicciones bloqueadas');
+   462→      }
+   463→    } catch {
+   464→      toast.error('Error al actualizar configuración');
+   465→    }
+   466→  };
+   467→
+   468→  const handleSaveResult = async (matchId: string) => {
+   469→    const scores = matchResults[matchId];
+   470→    if (!scores || scores.home === '' || scores.away === '') {
+   471→      toast.error('Ingresa ambos marcadores');
+   472→      return;
+   473→    }
+   474→    setSavingResult(matchId);
+   475→    try {
+   476→      const res = await authFetch('/api/matches', {
+   477→        method: 'PUT',
+   478→        headers: { 'Content-Type': 'application/json' },
+   479→        body: JSON.stringify({
+   480→          matchId,
+   481→          homeScore: parseInt(scores.home),
+   482→          awayScore: parseInt(scores.away),
+   483→        }),
+   484→      });
+   485→      if (res.ok) {
+   486→        toast.success('Resultado guardado - Puntajes actualizados');
+   487→        fetchMatches();
+   488→        fetchLeaderboard();
+   489→        setMatchResults((prev) => {
+   490→          const next = { ...prev };
+   491→          delete next[matchId];
+   492→          return next;
+   493→        });
+   494→      } else {
+   495→        const data = await res.json();
+   496→        toast.error(data.error || 'Error al guardar resultado');
+   497→      }
+   498→    } catch {
+   499→      toast.error('Error de conexión');
+   500→    } finally {
+   501→      setSavingResult(null);
+   502→    }
+   503→  };
+   504→
+   505→  const handleReset = async (type: string) => {
+   506→    try {
+   507→      const res = await authFetch('/api/admin/reset', {
+   508→        method: 'POST',
+   509→        headers: { 'Content-Type': 'application/json' },
+   510→        body: JSON.stringify({ type }),
+   511→      });
+   512→      if (res.ok) {
+   513→        toast.success('Datos reseteados exitosamente');
+   514→        fetchMatches();
+   515→        fetchLeaderboard();
+   516→        fetchAdminUsers();
+   517→        fetchSettings();
+   518→        fetchConfirmedUsers();
+   519→      }
+   520→    } catch {
+   521→      toast.error('Error al resetear datos');
+   522→    }
+   523→  };
+   524→
+   525→  const handleViewingUserChange = (userId: string) => {
+   526→    if (userId === user?.id) {
+   527→      // Viewing own predictions - switch to edit mode
+   528→      setViewingUserId('');
+   529→      setViewedPredictions([]);
+   530→      setViewedUserName('');
+   531→      return;
+   532→    }
+   533→    setViewingUserId(userId);
+   534→    const found = confirmedUsers.find(u => u.id === userId);
+   535→    setViewedUserName(found?.name || '');
+   536→    fetchUserPredictions(userId);
+   537→  };
+   538→
+   539→  // Loading state
+   540→  if (loading) {
+   541→    return (
+   542→      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+   543→        <div className="text-center">
+   544→          <Loader2 className="h-10 w-10 animate-spin text-teal-500 mx-auto" />
+   545→          <p className="mt-3 text-slate-400 text-sm">Cargando...</p>
+   546→        </div>
+   547→      </div>
+   548→    );
+   549→  }
+   550→
+   551→  // Auth page
+   552→  if (!user) {
+   553→    return (
+   554→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0f1e] via-[#0f172a] to-[#0a0f1e] p-4">
+   555→        <Card className="w-full max-w-md bg-[#141b2d]/90 border-white/10 backdrop-blur-sm shadow-2xl shadow-black/50">
+   556→          <CardHeader className="text-center space-y-4">
+   557→            <div className="flex justify-center">
+   558→              <img
+   559→                src="/jenecheru26.png"
+   560→                alt="Jenecherú Logo"
+   561→                className="w-28 h-28 rounded-xl object-contain"
+   562→              />
+   563→            </div>
+   564→            <div>
+   565→              <CardTitle className="text-2xl font-bold text-white">
+   566→                Mundial 2026 Jenecherú
+   567→              </CardTitle>
+   568→              <CardDescription className="text-teal-400 mt-1 font-medium">
+   569→                ACTIVO FIJO
+   570→              </CardDescription>
+   571→            </div>
+   572→          </CardHeader>
+   573→          <CardContent>
+   574→            <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as 'login' | 'register')} className="w-full">
+   575→              <TabsList className="grid w-full grid-cols-2 bg-[#1e293b]">
+   576→                <TabsTrigger value="login" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+   577→                  Iniciar Sesión
+   578→                </TabsTrigger>
+   579→                <TabsTrigger value="register" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+   580→                  Registrarse
+   581→                </TabsTrigger>
+   582→              </TabsList>
+   583→
+   584→              <TabsContent value="login" className="mt-6">
+   585→                <form onSubmit={handleLogin} className="space-y-4">
+   586→                  <div className="space-y-2">
+   587→                    <Label className="text-slate-300">Usuario o Correo</Label>
+   588→                    <Input
+   589→                      value={loginName}
+   590→                      onChange={(e) => setLoginName(e.target.value)}
+   591→                      placeholder="Tu nombre de usuario"
+   592→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   593→                      required
+   594→                    />
+   595→                  </div>
+   596→                  <div className="space-y-2">
+   597→                    <Label className="text-slate-300">Contraseña</Label>
+   598→                    <Input
+   599→                      type="password"
+   600→                      value={loginPassword}
+   601→                      onChange={(e) => setLoginPassword(e.target.value)}
+   602→                      placeholder="Tu contraseña"
+   603→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   604→                      required
+   605→                    />
+   606→                  </div>
+   607→                  <Button
+   608→                    type="submit"
+   609→                    disabled={authLoading}
+   610→                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold h-11"
+   611→                  >
+   612→                    {authLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CircleDot className="h-4 w-4 mr-2" />}
+   613→                    Iniciar Sesión
+   614→                  </Button>
+   615→                </form>
+   616→              </TabsContent>
+   617→
+   618→              <TabsContent value="register" className="mt-6">
+   619→                <form onSubmit={handleRegister} className="space-y-4">
+   620→                  <div className="space-y-2">
+   621→                    <Label className="text-slate-300">Nombre de usuario</Label>
+   622→                    <Input
+   623→                      value={regName}
+   624→                      onChange={(e) => setRegName(e.target.value)}
+   625→                      placeholder="Tu nombre"
+   626→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   627→                      required
+   628→                    />
+   629→                  </div>
+   630→                  <div className="space-y-2">
+   631→                    <Label className="text-slate-300">Correo electrónico</Label>
+   632→                    <Input
+   633→                      type="email"
+   634→                      value={regEmail}
+   635→                      onChange={(e) => setRegEmail(e.target.value)}
+   636→                      placeholder="tu@correo.com"
+   637→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   638→                      required
+   639→                    />
+   640→                  </div>
+   641→                  <div className="space-y-2">
+   642→                    <Label className="text-slate-300">Contraseña</Label>
+   643→                    <Input
+   644→                      type="password"
+   645→                      value={regPassword}
+   646→                      onChange={(e) => setRegPassword(e.target.value)}
+   647→                      placeholder="Crea una contraseña"
+   648→                      className="bg-[#1e293b] border-white/10 text-white placeholder:text-slate-500 focus:border-teal-500"
+   649→                      required
+   650→                    />
+   651→                  </div>
+   652→                  <Button
+   653→                    type="submit"
+   654→                    disabled={authLoading}
+   655→                    className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold h-11"
+   656→                  >
+   657→                    {authLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   658→                    Registrarse
+   659→                  </Button>
+   660→                </form>
+   661→              </TabsContent>
+   662→            </Tabs>
+   663→          </CardContent>
+   664→        </Card>
+   665→      </div>
+   666→    );
+   667→  }
+   668→
+   669→  // Not confirmed notice
+   670→  if (!user.isConfirmed && !user.isAdmin) {
+   671→    return (
+   672→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0f1e] via-[#0f172a] to-[#0a0f1e] p-4">
+   673→        <Card className="w-full max-w-md bg-[#141b2d]/90 border-white/10 backdrop-blur-sm shadow-2xl shadow-black/50">
+   674→          <CardHeader className="text-center space-y-4">
+   675→            <div className="flex justify-center">
+   676→              <img
+   677→                src="/jenecheru26.png"
+   678→                alt="Jenecherú Logo"
+   679→                className="w-20 h-20 rounded-xl object-contain"
+   680→              />
+   681→            </div>
+   682→            <div>
+   683→              <CardTitle className="text-xl font-bold text-amber-400 flex items-center justify-center gap-2">
+   684→                <Eye className="h-5 w-5" /> Esperando Confirmación
+   685→              </CardTitle>
+   686→              <CardDescription className="text-slate-400 mt-2">
+   687→                Tu cuenta aún no ha sido confirmada por el administrador.
+   688→                <br />Por favor, espera a que sea aprobada.
+   689→              </CardDescription>
+   690→            </div>
+   691→          </CardHeader>
+   692→          <CardContent className="flex justify-center">
+   693→            <Button variant="outline" onClick={handleLogout} className="border-white/20 text-white hover:bg-white/10">
+   694→              <LogOut className="h-4 w-4 mr-2" /> Cerrar Sesión
+   695→            </Button>
+   696→          </CardContent>
+   697→        </Card>
+   698→      </div>
+   699→    );
+   700→  }
+   701→
+   702→  // Group matches by group
+   703→  const matchesByGroup = groupOrder.map((group) => ({
+   704→    group,
+   705→    matches: matches.filter((m) => m.group === group),
+   706→  })).filter((g) => g.matches.length > 0);
+   707→
+   708→  // Determine if user is viewing own predictions or another's
+   709→  const isViewingOwn = !viewingUserId || viewingUserId === user.id;
+   710→
+   711→  // Get prediction for a match from viewed predictions
+   712→  const getViewedPrediction = (matchId: string) => {
+   713→    if (isViewingOwn) {
+   714→      return predictions.find((p) => p.matchId === matchId);
+   715→    }
+   716→    return viewedPredictions.find((p) => p.matchId === matchId);
+   717→  };
+   718→
+   719→  // Get editing value for a match
+   720→  const getEditingValue = (matchId: string) => {
+   721→    return editingPredictions[matchId] || { home: 0, away: 0 };
+   722→  };
+   723→
+   724→  // Match Card Component for predictions
+   725→  const MatchCard = ({ match }: { match: Match }) => {
+   726→    const pred = getViewedPrediction(match.id);
+   727→    const editing = getEditingValue(match.id);
+   728→    const canEdit = isViewingOwn && !predictionsLocked && !match.isCompleted && !user?.isAdmin;
+   729→    const homeFlag = countryFlags[match.homeTeam] || '';
+   730→    const awayFlag = countryFlags[match.awayTeam] || '';
+   731→    const homeCode = countryCodes[match.homeTeam] || '';
+   732→    const awayCode = countryCodes[match.awayTeam] || '';
+   733→
+   734→    return (
+   735→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden hover:border-white/10 transition-colors">
+   736→        {/* Card Header - Group & Venue Info */}
+   737→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   738→          <div className="flex items-center justify-between">
+   739→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   740→              {match.group}
+   741→            </span>
+   742→            {match.isCompleted && (
+   743→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+   744→            )}
+   745→          </div>
+   746→          <div className="flex items-center gap-2 mt-0.5">
+   747→            {match.venue && (
+   748→              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   749→                <MapPin className="h-2.5 w-2.5" /> {match.venue}
+   750→              </span>
+   751→            )}
+   752→          </div>
+   753→          {match.date && (
+   754→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   755→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+   756→            </span>
+   757→          )}
+   758→        </div>
+   759→
+   760→        {/* Teams & Score */}
+   761→        <div className="p-3">
+   762→          <div className="flex items-center justify-between gap-2">
+   763→            {/* Home Team */}
+   764→            <div className="flex-1 flex items-center gap-2 min-w-0">
+   765→              <span className="text-lg">{homeFlag}</span>
+   766→              <div className="min-w-0">
+   767→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+   768→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+   769→              </div>
+   770→            </div>
+   771→
+   772→            {/* Score Section */}
+   773→            <div className="flex items-center gap-1.5 shrink-0">
+   774→              {canEdit ? (
+   775→                <>
+   776→                  <Input
+   777→                    type="number"
+   778→                    min="0"
+   779→                    max="99"
+   780→                    value={editing.home}
+   781→                    onChange={(e) =>
+   782→                      setEditingPredictions((prev) => {
+   783→                        const existing = prev[match.id] || { home: 0, away: 0 };
+   784→                        return {
+   785→                          ...prev,
+   786→                          [match.id]: { ...existing, home: parseInt(e.target.value) || 0 },
+   787→                        };
+   788→                      })
+   789→                    }
+   790→                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   791→                  />
+   792→                  <span className="text-slate-500 text-xs">-</span>
+   793→                  <Input
+   794→                    type="number"
+   795→                    min="0"
+   796→                    max="99"
+   797→                    value={editing.away}
+   798→                    onChange={(e) =>
+   799→                      setEditingPredictions((prev) => {
+   800→                        const existing = prev[match.id] || { home: 0, away: 0 };
+   801→                        return {
+   802→                          ...prev,
+   803→                          [match.id]: { ...existing, away: parseInt(e.target.value) || 0 },
+   804→                        };
+   805→                      })
+   806→                    }
+   807→                    className="w-10 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   808→                  />
+   809→                </>
+   810→              ) : match.isCompleted ? (
+   811→                <div className="flex items-center gap-1.5">
+   812→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   813→                    {match.homeScore}
+   814→                  </span>
+   815→                  <span className="text-slate-500 text-xs">-</span>
+   816→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   817→                    {match.awayScore}
+   818→                  </span>
+   819→                </div>
+   820→              ) : pred ? (
+   821→                <div className="flex items-center gap-1.5">
+   822→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   823→                    {pred.homeScore}
+   824→                  </span>
+   825→                  <span className="text-slate-500 text-xs">-</span>
+   826→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+   827→                    {pred.awayScore}
+   828→                  </span>
+   829→                </div>
+   830→              ) : (
+   831→                <div className="flex items-center gap-1.5">
+   832→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+   833→                  <span className="text-slate-500 text-xs">-</span>
+   834→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-slate-600 text-sm">-</span>
+   835→                </div>
+   836→              )}
+   837→            </div>
+   838→
+   839→            {/* Away Team */}
+   840→            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+   841→              <div className="min-w-0 text-right">
+   842→                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+   843→                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+   844→              </div>
+   845→              <span className="text-lg">{awayFlag}</span>
+   846→            </div>
+   847→          </div>
+   848→
+   849→          {/* Points badge */}
+   850→          {pred && pred.points !== null && pred.points !== undefined && (
+   851→            <div className="mt-1.5 text-center">
+   852→              <Badge className={`text-[10px] ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600/70'}`}>
+   853→                +{pred.points} {pred.points === 3 ? 'pts exacto' : pred.points === 1 ? 'pt parcial' : 'pts'}
+   854→              </Badge>
+   855→            </div>
+   856→          )}
+   857→        </div>
+   858→      </div>
+   859→    );
+   860→  };
+   861→
+   862→  // Result Match Card for admin
+   863→  const ResultMatchCard = ({ match }: { match: Match }) => {
+   864→    const homeFlag = countryFlags[match.homeTeam] || '';
+   865→    const awayFlag = countryFlags[match.awayTeam] || '';
+   866→    const homeCode = countryCodes[match.homeTeam] || '';
+   867→    const awayCode = countryCodes[match.awayTeam] || '';
+   868→    const currentResult = matchResults[match.id] || {
+   869→      home: match.homeScore?.toString() || '',
+   870→      away: match.awayScore?.toString() || '',
+   871→    };
+   872→
+   873→    return (
+   874→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+   875→        {/* Card Header */}
+   876→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   877→          <div className="flex items-center justify-between">
+   878→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   879→              {match.group}
+   880→            </span>
+   881→            {match.isCompleted && (
+   882→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+   883→            )}
+   884→          </div>
+   885→          {match.venue && (
+   886→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+   887→              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+   888→            </span>
+   889→          )}
+   890→          {match.date && (
+   891→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+   892→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+   893→            </span>
+   894→          )}
+   895→        </div>
+   896→
+   897→        {/* Teams & Score Input */}
+   898→        <div className="p-3">
+   899→          <div className="flex items-center justify-between gap-2">
+   900→            {/* Home Team */}
+   901→            <div className="flex-1 flex items-center gap-2 min-w-0">
+   902→              <span className="text-lg">{homeFlag}</span>
+   903→              <div className="min-w-0">
+   904→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+   905→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+   906→              </div>
+   907→            </div>
+   908→
+   909→            {/* Score Input */}
+   910→            {user.isAdmin && (
+   911→              <div className="flex items-center gap-1.5 shrink-0">
+   912→                <Input
+   913→                  type="number"
+   914→                  min="0"
+   915→                  max="99"
+   916→                  placeholder="-"
+   917→                  value={currentResult.home}
+   918→                  onChange={(e) =>
+   919→                    setMatchResults((prev) => ({
+   920→                      ...prev,
+   921→                      [match.id]: { ...prev[match.id], home: e.target.value },
+   922→                    }))
+   923→                  }
+   924→                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   925→                />
+   926→                <span className="text-slate-500 text-xs">-</span>
+   927→                <Input
+   928→                  type="number"
+   929→                  min="0"
+   930→                  max="99"
+   931→                  placeholder="-"
+   932→                  value={currentResult.away}
+   933→                  onChange={(e) =>
+   934→                    setMatchResults((prev) => ({
+   935→                      ...prev,
+   936→                      [match.id]: { ...prev[match.id], away: e.target.value },
+   937→                    }))
+   938→                  }
+   939→                  className="w-11 h-9 text-center bg-[#0f172a] border-white/10 text-white text-sm font-bold p-0 focus:border-teal-500"
+   940→                />
+   941→              </div>
+   942→            )}
+   943→
+   944→            {/* Away Team */}
+   945→            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+   946→              <div className="min-w-0 text-right">
+   947→                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+   948→                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+   949→              </div>
+   950→              <span className="text-lg">{awayFlag}</span>
+   951→            </div>
+   952→          </div>
+   953→
+   954→          {/* Save result button (admin only) */}
+   955→          {user.isAdmin && !match.isCompleted && (
+   956→            <div className="mt-2">
+   957→              <Button
+   958→                size="sm"
+   959→                onClick={() => handleSaveResult(match.id)}
+   960→                disabled={savingResult === match.id}
+   961→                className="w-full h-7 bg-teal-600 hover:bg-teal-500 text-white text-xs"
+   962→              >
+   963→                {savingResult === match.id ? (
+   964→                  <Loader2 className="h-3 w-3 animate-spin" />
+   965→                ) : (
+   966→                  <Save className="h-3 w-3 mr-1" />
+   967→                )}
+   968→                Guardar
+   969→              </Button>
+   970→            </div>
+   971→          )}
+   972→
+   973→          {/* Completed result display */}
+   974→          {match.isCompleted && (
+   975→            <div className="mt-1.5 text-center">
+   976→              <span className="text-emerald-400 text-xs font-medium">
+   977→                Resultado: {match.homeScore} - {match.awayScore}
+   978→              </span>
+   979→            </div>
+   980→          )}
+   981→        </div>
+   982→      </div>
+   983→    );
+   984→  };
+   985→
+   986→  // User Results View Card (non-admin)
+   987→  const UserResultCard = ({ match }: { match: Match }) => {
+   988→    const pred = predictions.find((p) => p.matchId === match.id);
+   989→    const homeFlag = countryFlags[match.homeTeam] || '';
+   990→    const awayFlag = countryFlags[match.awayTeam] || '';
+   991→    const homeCode = countryCodes[match.homeTeam] || '';
+   992→    const awayCode = countryCodes[match.awayTeam] || '';
+   993→
+   994→    return (
+   995→      <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+   996→        <div className="px-3 py-2 bg-[#141b2d]/60 border-b border-white/5">
+   997→          <div className="flex items-center justify-between">
+   998→            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">
+   999→              {match.group}
+  1000→            </span>
+  1001→            {match.isCompleted && (
+  1002→              <Badge className="bg-emerald-600 text-[9px] px-1.5 py-0">FINALIZADO</Badge>
+  1003→            )}
+  1004→          </div>
+  1005→          {match.venue && (
+  1006→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5 mt-0.5">
+  1007→              <MapPin className="h-2.5 w-2.5" /> {match.venue}
+  1008→            </span>
+  1009→          )}
+  1010→          {match.date && (
+  1011→            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+  1012→              <Calendar className="h-2.5 w-2.5" /> {match.date}
+  1013→            </span>
+  1014→          )}
+  1015→        </div>
+  1016→        <div className="p-3">
+  1017→          <div className="flex items-center justify-between gap-2">
+  1018→            <div className="flex-1 flex items-center gap-2 min-w-0">
+  1019→              <span className="text-lg">{homeFlag}</span>
+  1020→              <div className="min-w-0">
+  1021→                <div className="text-white text-sm font-semibold truncate">{match.homeTeam}</div>
+  1022→                <div className="text-slate-500 text-[10px] font-mono">{homeCode}</div>
+  1023→              </div>
+  1024→            </div>
+  1025→
+  1026→            <div className="flex items-center gap-2 shrink-0">
+  1027→              {match.isCompleted ? (
+  1028→                <div className="flex items-center gap-1.5">
+  1029→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+  1030→                    {match.homeScore}
+  1031→                  </span>
+  1032→                  <span className="text-slate-500 text-xs">-</span>
+  1033→                  <span className="w-8 h-8 flex items-center justify-center bg-[#0f172a] rounded text-white text-sm font-bold">
+  1034→                    {match.awayScore}
+  1035→                  </span>
+  1036→                </div>
+  1037→              ) : (
+  1038→                <span className="text-slate-500 text-xs">Pendiente</span>
+  1039→              )}
+  1040→
+  1041→              {pred && (
+  1042→                <div className="flex flex-col items-center">
+  1043→                  <span className="text-[9px] text-slate-500">Mi pronóstico</span>
+  1044→                  <span className="text-white text-xs font-bold">
+  1045→                    {pred.homeScore}-{pred.awayScore}
+  1046→                  </span>
+  1047→                </div>
+  1048→              )}
+  1049→            </div>
+  1050→
+  1051→            <div className="flex-1 flex items-center gap-2 min-w-0 justify-end">
+  1052→              <div className="min-w-0 text-right">
+  1053→                <div className="text-white text-sm font-semibold truncate">{match.awayTeam}</div>
+  1054→                <div className="text-slate-500 text-[10px] font-mono">{awayCode}</div>
+  1055→              </div>
+  1056→              <span className="text-lg">{awayFlag}</span>
+  1057→            </div>
+  1058→          </div>
+  1059→
+  1060→          {pred && pred.points !== null && pred.points !== undefined && (
+  1061→            <div className="mt-1.5 text-center">
+  1062→              <Badge className={`text-[10px] ${pred.points === 3 ? 'bg-teal-600' : pred.points === 1 ? 'bg-amber-600' : 'bg-red-600/70'}`}>
+  1063→                +{pred.points} pts
+  1064→              </Badge>
+  1065→            </div>
+  1066→          )}
+  1067→        </div>
+  1068→      </div>
+  1069→    );
+  1070→  };
+  1071→
+  1072→  // Collapsible Group Component
+  1073→  function MatchGroupSection({
+  1074→    group,
+  1075→    groupMatches,
+  1076→    children,
+  1077→    defaultOpen = false,
+  1078→  }: {
+  1079→    group: string;
+  1080→    groupMatches: Match[];
+  1081→    children: React.ReactNode;
+  1082→    defaultOpen?: boolean;
+  1083→  }) {
+  1084→    const [isOpen, setIsOpen] = useState(defaultOpen);
+  1085→    const completedCount = groupMatches.filter(m => m.isCompleted).length;
+  1086→
+  1087→    return (
+  1088→      <div className="space-y-3">
+  1089→        <button
+  1090→          onClick={() => setIsOpen(!isOpen)}
+  1091→          className="w-full flex items-center justify-between py-2 px-1 hover:bg-white/5 rounded-lg transition-colors"
+  1092→        >
+  1093→          <div className="flex items-center gap-2">
+  1094→            {isOpen ? (
+  1095→              <ChevronDown className="h-4 w-4 text-teal-400" />
+  1096→            ) : (
+  1097→              <ChevronRight className="h-4 w-4 text-slate-400" />
+  1098→            )}
+  1099→            <span className="text-sm font-bold text-slate-300 uppercase tracking-wider">{group}</span>
+  1100→          </div>
+  1101→          <div className="flex items-center gap-2">
+  1102→            {completedCount > 0 && (
+  1103→              <Badge className="bg-emerald-600 text-xs">{completedCount}/{groupMatches.length}</Badge>
+  1104→            )}
+  1105→            <span className="text-xs text-slate-500">{groupMatches.length} partidos</span>
+  1106→          </div>
+  1107→        </button>
+  1108→        {isOpen && (
+  1109→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1110→            {children}
+  1111→          </div>
+  1112→        )}
+  1113→      </div>
+  1114→    );
+  1115→  }
+  1116→
+  1117→  // Main app
+  1118→  return (
+  1119→    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0f1e] via-[#0f172a] to-[#0a0f1e]">
+  1120→      {/* Header */}
+  1121→      <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-sm border-b border-white/10">
+  1122→        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+  1123→          <div className="flex items-center gap-3">
+  1124→            <img
+  1125→              src="/jenecheru26.png"
+  1126→              alt="Jenecherú"
+  1127→              className="w-10 h-10 rounded-lg object-contain"
+  1128→            />
+  1129→            <div>
+  1130→              <h1 className="text-lg font-bold text-white flex items-center gap-1">
+  1131→                <Trophy className="h-5 w-5 text-yellow-400" /> Mundial 2026
+  1132→              </h1>
+  1133→              <p className="text-xs text-slate-400">Jenecherú</p>
+  1134→            </div>
+  1135→          </div>
+  1136→          <div className="flex items-center gap-2 sm:gap-3">
+  1137→            <span className="text-sm text-white hidden sm:block">{user.name}</span>
+  1138→            {user.isAdmin && (
+  1139→              <Badge className="bg-amber-600 hover:bg-amber-500 text-white text-xs">ADMIN</Badge>
+  1140→            )}
+  1141→            <Button
+  1142→              variant="ghost"
+  1143→              size="sm"
+  1144→              onClick={handleLogout}
+  1145→              className="text-slate-400 hover:text-white hover:bg-white/10"
+  1146→            >
+  1147→              <LogOut className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Cerrar Sesión</span>
+  1148→            </Button>
+  1149→          </div>
+  1150→        </div>
+  1151→      </header>
+  1152→
+  1153→      {/* Main Content */}
+  1154→      <main ref={mainRef} className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+  1155→        <Tabs value={activeTab} onValueChange={(tab) => {
+  1156→          setActiveTab(tab);
+  1157→          // Refetch admin data when switching to predictions tab
+  1158→          if (tab === 'predictions' && user?.isAdmin) {
+  1159→            fetchAdminUsers();
+  1160→            fetchSettings();
+  1161→            fetchConfirmedUsers();
+  1162→          }
+  1163→          // Refetch leaderboard when switching to scores tab
+  1164→          if (tab === 'scores') {
+  1165→            fetchLeaderboard();
+  1166→          }
+  1167→        }} className="w-full">
+  1168→          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 bg-[#1e293b] mb-6">
+  1169→            <TabsTrigger
+  1170→              value="scores"
+  1171→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white gap-1 text-xs sm:text-sm"
+  1172→            >
+  1173→              <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Puntajes
+  1174→            </TabsTrigger>
+  1175→            <TabsTrigger
+  1176→              value="predictions"
+  1177→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white gap-1 text-xs sm:text-sm"
+  1178→            >
+  1179→              <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Predicciones
+  1180→            </TabsTrigger>
+  1181→            <TabsTrigger
+  1182→              value="results"
+  1183→              className="data-[state=active]:bg-teal-600 data-[state=active]:text-white gap-1 text-xs sm:text-sm"
+  1184→            >
+  1185→              <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Resultados
+  1186→            </TabsTrigger>
+  1187→          </TabsList>
+  1188→
+  1189→          {/* PUNTAJES TAB */}
+  1190→          <TabsContent value="scores">
+  1191→            <div className="space-y-6">
+  1192→              <div className="text-center">
+  1193→                <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+  1194→                  <Trophy className="h-6 w-6 text-yellow-400" /> Tabla de Posiciones
+  1195→                </h2>
+  1196→                <p className="text-slate-400 mt-1">
+  1197→                  Clasificación general en tiempo real de los participantes
+  1198→                </p>
+  1199→              </div>
+  1200→
+  1201→              {/* Scoring explanation */}
+  1202→              <Card className="bg-[#141b2d] border-teal-500/20">
+  1203→                <CardContent className="p-4">
+  1204→                  <div className="flex flex-wrap gap-4 justify-center text-sm">
+  1205→                    <div className="flex items-center gap-2">
+  1206→                      <Badge className="bg-teal-600">3 PTS</Badge>
+  1207→                      <span className="text-slate-300">Acierto exacto</span>
+  1208→                    </div>
+  1209→                    <div className="flex items-center gap-2">
+  1210→                      <Badge className="bg-amber-600">1 PT</Badge>
+  1211→                      <span className="text-slate-300">Acierto parcial</span>
+  1212→                    </div>
+  1213→                  </div>
+  1214→                </CardContent>
+  1215→              </Card>
+  1216→
+  1217→              {/* Top participant card */}
+  1218→              {leaderboard.length > 0 && leaderboard[0].totalPoints > 0 && (
+  1219→                <Card className="bg-gradient-to-r from-yellow-900/30 to-amber-900/30 border-yellow-500/30">
+  1220→                  <CardContent className="p-6 flex items-center gap-4">
+  1221→                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-yellow-500/30">
+  1222→                      1
+  1223→                    </div>
+  1224→                    <div className="flex-1">
+  1225→                      <div className="flex items-center gap-2">
+  1226→                        <span className="text-lg font-bold text-white">{leaderboard[0].name}</span>
+  1227→                        <Medal className="h-5 w-5 text-yellow-400" />
+  1228→                      </div>
+  1229→                      <p className="text-slate-400 text-sm">
+  1230→                        Exactos: {leaderboard[0].exactPredictions} | Parciales: {leaderboard[0].partialPredictions}
+  1231→                      </p>
+  1232→                    </div>
+  1233→                    <div className="text-right">
+  1234→                      <p className="text-2xl font-bold text-teal-400">{leaderboard[0].totalPoints} pts</p>
+  1235→                    </div>
+  1236→                  </CardContent>
+  1237→                </Card>
+  1238→              )}
+  1239→
+  1240→              {/* Leaderboard table */}
+  1241→              <Card className="bg-[#141b2d] border-white/10">
+  1242→                <CardContent className="p-0">
+  1243→                  <div className="overflow-x-auto">
+  1244→                    <table className="w-full">
+  1245→                      <thead>
+  1246→                        <tr className="border-b border-white/10">
+  1247→                          <th className="text-left p-3 text-slate-400 text-sm font-medium">#</th>
+  1248→                          <th className="text-left p-3 text-slate-400 text-sm font-medium">PARTICIPANTE</th>
+  1249→                          <th className="text-center p-3 text-slate-400 text-sm font-medium hidden sm:table-cell">EXACTOS (3PTS)</th>
+  1250→                          <th className="text-center p-3 text-slate-400 text-sm font-medium hidden sm:table-cell">PARCIALES (1PT)</th>
+  1251→                          <th className="text-right p-3 text-slate-400 text-sm font-medium">PUNTOS</th>
+  1252→                        </tr>
+  1253→                      </thead>
+  1254→                      <tbody>
+  1255→                        {leaderboard.length === 0 ? (
+  1256→                          <tr>
+  1257→                            <td colSpan={5} className="text-center p-8 text-slate-500">
+  1258→                              No hay participantes confirmados aún
+  1259→                            </td>
+  1260→                          </tr>
+  1261→                        ) : (
+  1262→                          leaderboard.map((entry, index) => (
+  1263→                            <tr
+  1264→                              key={entry.id}
+  1265→                              className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+  1266→                                index < 3 ? 'bg-white/[0.02]' : ''
+  1267→                              }`}
+  1268→                            >
+  1269→                              <td className="p-3">
+  1270→                                <div
+  1271→                                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+  1272→                                    index === 0
+  1273→                                      ? 'bg-gradient-to-br from-yellow-400 to-amber-600 text-white'
+  1274→                                      : index === 1
+  1275→                                      ? 'bg-gradient-to-br from-slate-300 to-slate-500 text-white'
+  1276→                                      : index === 2
+  1277→                                      ? 'bg-gradient-to-br from-amber-600 to-amber-800 text-white'
+  1278→                                      : 'bg-slate-700 text-slate-300'
+  1279→                                  }`}
+  1280→                                >
+  1281→                                  {index + 1}
+  1282→                                </div>
+  1283→                              </td>
+  1284→                              <td className="p-3 text-white font-medium">{entry.name}</td>
+  1285→                              <td className="p-3 text-center text-teal-400 font-medium hidden sm:table-cell">
+  1286→                                {entry.exactPredictions}
+  1287→                              </td>
+  1288→                              <td className="p-3 text-center text-amber-400 font-medium hidden sm:table-cell">
+  1289→                                {entry.partialPredictions}
+  1290→                              </td>
+  1291→                              <td className="p-3 text-right">
+  1292→                                <span className="text-lg font-bold text-teal-400">{entry.totalPoints}</span>
+  1293→                                <span className="text-slate-500 text-sm ml-1">pts</span>
+  1294→                              </td>
+  1295→                            </tr>
+  1296→                          ))
+  1297→                        )}
+  1298→                      </tbody>
+  1299→                    </table>
+  1300→                  </div>
+  1301→                </CardContent>
+  1302→              </Card>
+  1303→            </div>
+  1304→          </TabsContent>
+  1305→
+  1306→          {/* PREDICCIONES TAB */}
+  1307→          <TabsContent value="predictions">
+  1308→            <div className="space-y-6">
+  1309→              <div className="text-center">
+  1310→                <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+  1311→                  <ClipboardList className="h-6 w-6 text-teal-400" /> Panel de Predicciones
+  1312→                </h2>
+  1313→                <p className="text-slate-400 mt-1">
+  1314→                  Pronósticos de los participantes para los {matches.length} partidos del mundial
+  1315→                </p>
+  1316→              </div>
+  1317→
+  1318→              {/* Admin Controls */}
+  1319→              {user.isAdmin && (
+  1320→                <>
+  1321→                  {/* Prediction Lock Control */}
+  1322→                  <Card className="bg-[#141b2d] border-white/10">
+  1323→                    <CardHeader className="pb-3">
+  1324→                      <CardTitle className="text-base flex items-center gap-2">
+  1325→                        <Shield className="h-5 w-5 text-amber-500" /> Control de Predicciones
+  1326→                      </CardTitle>
+  1327→                      <CardDescription className="text-slate-400 text-sm">
+  1328→                        Bloquea la edición y guardado de pronósticos a todos los usuarios.
+  1329→                      </CardDescription>
+  1330→                    </CardHeader>
+  1331→                    <CardContent>
+  1332→                      <div className="flex items-center justify-between">
+  1333→                        <span className={`text-sm font-medium ${predictionsLocked ? 'text-red-400' : 'text-teal-400'}`}>
+  1334→                          {predictionsLocked ? '🔒 BLOQUEADO (Cerrado)' : '🔓 DESBLOQUEADO (Abierto)'}
+  1335→                        </span>
+  1336→                        <Switch
+  1337→                          checked={!predictionsLocked}
+  1338→                          onCheckedChange={handleToggleLock}
+  1339→                          aria-label="Bloquear/desbloquear predicciones"
+  1340→                        />
+  1341→                      </div>
+  1342→                    </CardContent>
+  1343→                  </Card>
+  1344→
+  1345→                  {/* User Approval */}
+  1346→                  <Card className="bg-[#141b2d] border-white/10">
+  1347→                    <CardHeader className="pb-3">
+  1348→                      <div className="flex items-center justify-between">
+  1349→                        <CardTitle className="text-base flex items-center gap-2">
+  1350→                          <Users className="h-5 w-5 text-purple-400" /> Aprobación de Participantes
+  1351→                        </CardTitle>
+  1352→                        <Button
+  1353→                          variant="ghost"
+  1354→                          size="sm"
+  1355→                          onClick={() => { fetchAdminUsers(); fetchConfirmedUsers(); }}
+  1356→                          className="h-7 text-xs text-slate-400 hover:text-white"
+  1357→                        >
+  1358→                          <RotateCcw className="h-3 w-3 mr-1" /> Actualizar
+  1359→                        </Button>
+  1360→                      </div>
+  1361→                    </CardHeader>
+  1362→                    <CardContent>
+  1363→                      {adminUsers.length === 0 ? (
+  1364→                        <div className="text-center py-4 space-y-2">
+  1365→                          <p className="text-slate-500 text-sm">No hay usuarios registrados aún</p>
+  1366→                          <Button
+  1367→                            variant="outline"
+  1368→                            size="sm"
+  1369→                            onClick={() => fetchAdminUsers()}
+  1370→                            className="h-7 text-xs border-white/20 text-slate-300 hover:text-white"
+  1371→                          >
+  1372→                            <RotateCcw className="h-3 w-3 mr-1" /> Reintentar
+  1373→                          </Button>
+  1374→                        </div>
+  1375→                      ) : (
+  1376→                        <div className="overflow-x-auto">
+  1377→                          <table className="w-full">
+  1378→                            <thead>
+  1379→                              <tr className="border-b border-white/10">
+  1380→                                <th className="text-left p-2 text-slate-400 text-xs font-medium">USUARIO</th>
+  1381→                                <th className="text-left p-2 text-slate-400 text-xs font-medium hidden sm:table-cell">CORREO</th>
+  1382→                                <th className="text-center p-2 text-slate-400 text-xs font-medium">ESTADO</th>
+  1383→                                <th className="text-center p-2 text-slate-400 text-xs font-medium">CONFIRMAR</th>
+  1384→                              </tr>
+  1385→                            </thead>
+  1386→                            <tbody>
+  1387→                              {[...adminUsers].sort((a, b) => {
+  1388→                                // Show pending users first
+  1389→                                if (a.isConfirmed !== b.isConfirmed) return a.isConfirmed ? 1 : -1;
+  1390→                                return 0;
+  1391→                              }).map((u) => (
+  1392→                                <tr key={u.id} className="border-b border-white/5">
+  1393→                                  <td className="p-2 text-white text-sm">{u.name}</td>
+  1394→                                  <td className="p-2 text-slate-400 text-sm hidden sm:table-cell">{u.email}</td>
+  1395→                                  <td className="p-2 text-center">
+  1396→                                    <Badge
+  1397→                                      className={`text-xs ${
+  1398→                                        u.isConfirmed
+  1399→                                          ? 'bg-emerald-600 hover:bg-emerald-500'
+  1400→                                          : 'bg-slate-600 hover:bg-slate-500'
+  1401→                                      }`}
+  1402→                                    >
+  1403→                                      {u.isConfirmed ? 'CONFIRMADO' : 'PENDIENTE'}
+  1404→                                    </Badge>
+  1405→                                  </td>
+  1406→                                  <td className="p-2 text-center">
+  1407→                                    <Switch
+  1408→                                      checked={u.isConfirmed}
+  1409→                                      onCheckedChange={(checked) => handleConfirmUser(u.id, checked)}
+  1410→                                      aria-label={`Confirmar usuario ${u.name}`}
+  1411→                                    />
+  1412→                                  </td>
+  1413→                                </tr>
+  1414→                              ))}
+  1415→                            </tbody>
+  1416→                          </table>
+  1417→                        </div>
+  1418→                      )}
+  1419→                    </CardContent>
+  1420→                  </Card>
+  1421→                </>
+  1422→              )}
+  1423→
+  1424→              {/* View Predictions Dropdown - Available for ALL users */}
+  1425→              <Card className="bg-[#141b2d] border-white/10">
+  1426→                <CardContent className="p-4">
+  1427→                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+  1428→                    <div className="flex items-center gap-2 shrink-0">
+  1429→                      <Eye className="h-5 w-5 text-teal-400" />
+  1430→                      <span className="text-sm font-medium text-white">Ver pronóstico de:</span>
+  1431→                    </div>
+  1432→                    <div className="flex-1 w-full sm:w-auto flex gap-2">
+  1433→                      <Select
+  1434→                        value={viewingUserId}
+  1435→                        onValueChange={handleViewingUserChange}
+  1436→                      >
+  1437→                        <SelectTrigger className="bg-[#1e293b] border-white/10 text-white flex-1">
+  1438→                          <SelectValue placeholder={user.name + ' (Yo)'} />
+  1439→                        </SelectTrigger>
+  1440→                        <SelectContent className="bg-[#1e293b] border-white/10">
+  1441→                          <SelectItem value={user.id} className="text-white focus:bg-teal-600 focus:text-white">
+  1442→                            {user.name} (Yo)
+  1443→                          </SelectItem>
+  1444→                          {confirmedUsers
+  1445→                            .filter((u) => u.id !== user.id)
+  1446→                            .map((u) => (
+  1447→                              <SelectItem key={u.id} value={u.id} className="text-white focus:bg-teal-600 focus:text-white">
+  1448→                                {u.name}
+  1449→                              </SelectItem>
+  1450→                            ))}
+  1451→                        </SelectContent>
+  1452→                      </Select>
+  1453→                    </div>
+  1454→                  </div>
+  1455→                  {viewingUserId && viewingUserId !== user.id && (
+  1456→                    <p className="text-xs text-amber-400 mt-2">
+  1457→                      Estás viendo las predicciones de <strong>{viewedUserName}</strong> (solo lectura)
+  1458→                    </p>
+  1459→                  )}
+  1460→                  {predictionsLocked && isViewingOwn && !user.isAdmin && (
+  1461→                    <p className="text-xs text-red-400 mt-2">
+  1462→                      🔒 Las predicciones están bloqueadas por el administrador
+  1463→                    </p>
+  1464→                  )}
+  1465→                </CardContent>
+  1466→              </Card>
+  1467→
+  1468→              {/* Save Predictions Button (only when viewing own and not locked) */}
+  1469→              {isViewingOwn && !predictionsLocked && !user.isAdmin && (
+  1470→                <div className="flex justify-center">
+  1471→                  <Button
+  1472→                    onClick={handleSavePredictions}
+  1473→                    disabled={savingPredictions}
+  1474→                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold px-8 h-11"
+  1475→                  >
+  1476→                    {savingPredictions ? (
+  1477→                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+  1478→                    ) : (
+  1479→                      <Save className="h-4 w-4 mr-2" />
+  1480→                    )}
+  1481→                    Guardar Mis Predicciones
+  1482→                  </Button>
+  1483→                </div>
+  1484→              )}
+  1485→
+  1486→              {/* Match Groups */}
+  1487→              <div className="space-y-4">
+  1488→                {matchesByGroup.map(({ group, matches: groupMatches }) => (
+  1489→                  <MatchGroupSection
+  1490→                    key={group}
+  1491→                    group={group}
+  1492→                    groupMatches={groupMatches}
+  1493→                    defaultOpen={groupMatches[0]?.group === 'Grupo A'}
+  1494→                  >
+  1495→                    {groupMatches.map((match) => (
+  1496→                      <MatchCard key={match.id} match={match} />
+  1497→                    ))}
+  1498→                  </MatchGroupSection>
+  1499→                ))}
+  1500→              </div>
+  1501→            </div>
+  1502→          </TabsContent>
+  1503→
+  1504→          {/* RESULTADOS TAB */}
+  1505→          <TabsContent value="results">
+  1506→            <div className="space-y-6">
+  1507→              <div className="text-center">
+  1508→                <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+  1509→                  <Globe className="h-6 w-6 text-teal-400" /> Resultados Oficiales
+  1510→                </h2>
+  1511→                <p className="text-slate-400 mt-1">
+  1512→                  {user.isAdmin ? 'Ingresa los resultados oficiales de cada partido' : 'Resultados oficiales de los partidos'}
+  1513→                </p>
+  1514→              </div>
+  1515→
+  1516→              {/* Admin Reset Controls */}
+  1517→              {user.isAdmin && (
+  1518→                <Card className="bg-[#141b2d] border-red-500/20">
+  1519→                  <CardHeader className="pb-3">
+  1520→                    <CardTitle className="text-base flex items-center gap-2 text-red-400">
+  1521→                      <RotateCcw className="h-5 w-5" /> Reiniciar Datos
+  1522→                    </CardTitle>
+  1523→                    <CardDescription className="text-slate-400 text-sm">
+  1524→                      Elimina datos del sistema. Esta acción no se puede deshacer.
+  1525→                    </CardDescription>
+  1526→                  </CardHeader>
+  1527→                  <CardContent>
+  1528→                    <div className="flex flex-wrap gap-2">
+  1529→                      <AlertDialog>
+  1530→                        <AlertDialogTrigger asChild>
+  1531→                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+  1532→                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Predicciones
+  1533→                          </Button>
+  1534→                        </AlertDialogTrigger>
+  1535→                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+  1536→                          <AlertDialogHeader>
+  1537→                            <AlertDialogTitle className="text-white">¿Reiniciar predicciones?</AlertDialogTitle>
+  1538→                            <AlertDialogDescription className="text-slate-400">
+  1539→                              Se eliminarán todas las predicciones de todos los participantes y los puntajes recalculados.
+  1540→                            </AlertDialogDescription>
+  1541→                          </AlertDialogHeader>
+  1542→                          <AlertDialogFooter>
+  1543→                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+  1544→                            <AlertDialogAction onClick={() => handleReset('predictions')} className="bg-red-600 hover:bg-red-500">
+  1545→                              Reiniciar
+  1546→                            </AlertDialogAction>
+  1547→                          </AlertDialogFooter>
+  1548→                        </AlertDialogContent>
+  1549→                      </AlertDialog>
+  1550→
+  1551→                      <AlertDialog>
+  1552→                        <AlertDialogTrigger asChild>
+  1553→                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+  1554→                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Resultados
+  1555→                          </Button>
+  1556→                        </AlertDialogTrigger>
+  1557→                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+  1558→                          <AlertDialogHeader>
+  1559→                            <AlertDialogTitle className="text-white">¿Reiniciar resultados?</AlertDialogTitle>
+  1560→                            <AlertDialogDescription className="text-slate-400">
+  1561→                              Se eliminarán todos los resultados oficiales y se recalcularán los puntajes.
+  1562→                            </AlertDialogDescription>
+  1563→                          </AlertDialogHeader>
+  1564→                          <AlertDialogFooter>
+  1565→                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+  1566→                            <AlertDialogAction onClick={() => handleReset('matches')} className="bg-red-600 hover:bg-red-500">
+  1567→                              Reiniciar
+  1568→                            </AlertDialogAction>
+  1569→                          </AlertDialogFooter>
+  1570→                        </AlertDialogContent>
+  1571→                      </AlertDialog>
+  1572→
+  1573→                      <AlertDialog>
+  1574→                        <AlertDialogTrigger asChild>
+  1575→                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+  1576→                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Usuarios
+  1577→                          </Button>
+  1578→                        </AlertDialogTrigger>
+  1579→                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+  1580→                          <AlertDialogHeader>
+  1581→                            <AlertDialogTitle className="text-white">¿Reiniciar usuarios?</AlertDialogTitle>
+  1582→                            <AlertDialogDescription className="text-slate-400">
+  1583→                              Se eliminarán todos los usuarios y sus predicciones. El administrador no se eliminará.
+  1584→                            </AlertDialogDescription>
+  1585→                          </AlertDialogHeader>
+  1586→                          <AlertDialogFooter>
+  1587→                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+  1588→                            <AlertDialogAction onClick={() => handleReset('users')} className="bg-red-600 hover:bg-red-500">
+  1589→                              Reiniciar
+  1590→                            </AlertDialogAction>
+  1591→                          </AlertDialogFooter>
+  1592→                        </AlertDialogContent>
+  1593→                      </AlertDialog>
+  1594→
+  1595→                      <AlertDialog>
+  1596→                        <AlertDialogTrigger asChild>
+  1597→                          <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+  1598→                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Todo
+  1599→                          </Button>
+  1600→                        </AlertDialogTrigger>
+  1601→                        <AlertDialogContent className="bg-[#141b2d] border-white/10">
+  1602→                          <AlertDialogHeader>
+  1603→                            <AlertDialogTitle className="text-white">¿Reiniciar todo?</AlertDialogTitle>
+  1604→                            <AlertDialogDescription className="text-slate-400">
+  1605→                              Se eliminarán TODOS los datos: predicciones, resultados, usuarios y configuraciones.
+  1606→                            </AlertDialogDescription>
+  1607→                          </AlertDialogHeader>
+  1608→                          <AlertDialogFooter>
+  1609→                            <AlertDialogCancel className="bg-[#1e293b] text-white border-white/10">Cancelar</AlertDialogCancel>
+  1610→                            <AlertDialogAction onClick={() => handleReset('all')} className="bg-red-600 hover:bg-red-500">
+  1611→                              Reiniciar Todo
+  1612→                            </AlertDialogAction>
+  1613→                          </AlertDialogFooter>
+  1614→                        </AlertDialogContent>
+  1615→                      </AlertDialog>
+  1616→                    </div>
+  1617→                  </CardContent>
+  1618→                </Card>
+  1619→              )}
+  1620→
+  1621→              {/* Match Groups - Results */}
+  1622→              <div className="space-y-4">
+  1623→                {matchesByGroup.map(({ group, matches: groupMatches }) => (
+  1624→                  <MatchGroupSection
+  1625→                    key={group}
+  1626→                    group={group}
+  1627→                    groupMatches={groupMatches}
+  1628→                    defaultOpen={groupMatches[0]?.group === 'Grupo A'}
+  1629→                  >
+  1630→                    {user.isAdmin
+  1631→                      ? groupMatches.map((match) => (
+  1632→                          <ResultMatchCard key={match.id} match={match} />
+  1633→                        ))
+  1634→                      : groupMatches.map((match) => (
+  1635→                          <UserResultCard key={match.id} match={match} />
+  1636→                        ))
+  1637→                    }
+  1638→                  </MatchGroupSection>
+  1639→                ))}
+  1640→              </div>
+  1641→            </div>
+  1642→          </TabsContent>
+  1643→        </Tabs>
+  1644→      </main>
+  1645→
+  1646→      {/* Footer */}
+  1647→      <footer className="mt-auto bg-[#0f172a]/80 border-t border-white/5 py-4">
+  1648→        <div className="max-w-7xl mx-auto px-4 text-center">
+  1649→          <p className="text-slate-500 text-xs">
+  1650→            Mundial 2026 Jenecherú — UAGRM
+  1651→          </p>
+  1652→        </div>
+  1653→      </footer>
+  1654→    </div>
+  1655→  );
+  1656→}
+  1657→

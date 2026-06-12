@@ -118,6 +118,7 @@ const countryFlags: Record<string, string> = {
   'Argentina': '🇦🇷', 'Argelia': '🇩🇿', 'Austria': '🇦🇹', 'Jordania': '🇯🇴',
   'Portugal': '🇵🇹', 'RD Congo': '🇨🇩', 'Uzbekistán': '🇺🇿', 'Colombia': '🇨🇴',
   'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croacia': '🇭🇷', 'Ghana': '🇬🇭', 'Panamá': '🇵🇦',
+  'Italia': '🇮🇹', 'Polonia': '🇵🇱', 'Serbia': '🇷🇸', 'Ucrania': '🇺🇦', 'Dinamarca': '🇩🇰',
 };
 
 // Country codes for display
@@ -134,6 +135,7 @@ const countryCodes: Record<string, string> = {
   'Argentina': 'AR', 'Argelia': 'DZ', 'Austria': 'AT', 'Jordania': 'JO',
   'Portugal': 'PT', 'RD Congo': 'CD', 'Uzbekistán': 'UZ', 'Colombia': 'CO',
   'Inglaterra': 'EN', 'Croacia': 'HR', 'Ghana': 'GH', 'Panamá': 'PA',
+  'Italia': 'IT', 'Polonia': 'PL', 'Serbia': 'RS', 'Ucrania': 'UA', 'Dinamarca': 'DK',
 };
 
 export default function Home() {
