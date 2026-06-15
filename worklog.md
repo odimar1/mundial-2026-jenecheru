@@ -24,3 +24,4 @@ Stage Summary:
 - Seed script creates admin (Admin/activofijo26) and 72 group stage matches
 - Migration file ready for `prisma migrate deploy` on Vercel
 - Ready for Vercel deployment with Vercel Postgres
+actualización
